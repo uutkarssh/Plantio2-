@@ -1,0 +1,22 @@
+{
+  "name": "Plantio — Know your plants. Heal them fast.",
+  "short_name": "Plantio",
+  "description": "AI plant disease scanning, cure & fertilizer plans, land measurement, cattle feed advice, mandi prices and crop calendars for every grower.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6F3EA",
+  "theme_color": "#1F4D36",
+  "categories": ["productivity", "agriculture", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Scan a Plant", "url": "/scan", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Measure Land", "url": "/measure", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -1,0 +1,1269 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ===================================================================
+   PLANTIO DESIGN SYSTEM — sticker-book, nature-tech, green + yellow
+   FORCE LIGHT MODE everywhere (no dark: variants, no prefers-color-scheme)
+   =================================================================== */
+
+@theme inline {
+  /* Plantio brand palette */
+  --color-cream: #F6F3EA;
+  --color-forest: #1F4D36;
+  --color-midgreen: #3C8C4A;
+  --color-leaf: #8FD14F;
+  --color-gold: #F5C518;
+  --color-warn: #E85D3D;
+  --color-ink: #161611;
+
+  /* shadcn semantic mapping -> Plantio palette (light only) */
+  --color-background: var(--cream);
+  --color-foreground: var(--ink);
+  --color-card: #FFFFFF;
+  --color-card-foreground: var(--ink);
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--forest);
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: var(--gold);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: #ECE7D6;
+  --color-muted-foreground: #5C5A4F;
+  --color-accent: var(--leaf);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--warn);
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: var(--ink);
+  --color-input: var(--ink);
+  --color-ring: var(--forest);
+  --color-chart-1: #3C8C4A;
+  --color-chart-2: #F5C518;
+  --color-chart-3: #8FD14F;
+  --color-chart-4: #E85D3D;
+  --color-chart-5: #1F4D36;
+
+  /* fonts: Bakbak One (display) + Poppins (body) */
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bakbak), var(--font-poppins), sans-serif;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+}
+
+:root {
+  --radius: 1.25rem;
+  color-scheme: light;
+  /* force light: explicitly set shadcn HSL tokens to Plantio values */
+  --background: #F6F3EA;
+  --foreground: #161611;
+  --card: #FFFFFF;
+  --card-foreground: #161611;
+  --popover: #FFFFFF;
+  --popover-foreground: #161611;
+  --primary: #1F4D36;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F5C518;
+  --secondary-foreground: #161611;
+  --muted: #ECE7D6;
+  --muted-foreground: #5C5A4F;
+  --accent: #8FD14F;
+  --accent-foreground: #161611;
+  --destructive: #E85D3D;
+  --destructive-foreground: #FFFFFF;
+  --border: #161611;
+  --input: #161611;
+  --ring: #1F4D36;
+  --chart-1: #3C8C4A;
+  --chart-2: #F5C518;
+  --chart-3: #8FD14F;
+  --chart-4: #E85D3D;
+  --chart-5: #1F4D36;
+  --sidebar: #F6F3EA;
+  --sidebar-foreground: #161611;
+  --sidebar-primary: #1F4D36;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #8FD14F;
+  --sidebar-accent-foreground: #161611;
+  --sidebar-border: #161611;
+  --sidebar-ring: #1F4D36;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    border-color: #161611;
+  }
+  html {
+    color-scheme: light;
+    /* When the user taps an in-page anchor or programmatically scrolls, leave
+       space at the bottom so content isn't hidden behind the fixed BottomNav. */
+    scroll-padding-bottom: calc(env(safe-area-inset-bottom) + 92px);
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-color: #F6F3EA;
+    color: #161611;
+    font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Reserve space at the bottom of every page so the last card never sits
+       behind the fixed BottomNav (~76px tall + safe-area). The AppShell also
+       injects an explicit spacer inside its flex container; this body padding
+       is a belt-and-braces fallback for any page that bypasses the AppShell. */
+    padding-bottom: calc(env(safe-area-inset-bottom) + 84px);
+  }
+  /* Display font utility for headings/buttons.
+     Do NOT set a forced color here — let headings inherit from their parent
+     so that SectionHeader (text-white / text-ink) cascades correctly.
+     The body already sets color: #161611 as the default. */
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-bakbak), var(--font-poppins), sans-serif;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
+  }
+  /* Buttons use display font */
+  button, .btn-display {
+    font-family: var(--font-bakbak), var(--font-poppins), sans-serif;
+  }
+}
+
+/* ===================================================================
+   STICKER COMPONENTS — hard offset shadow, thick black border, rounded
+   =================================================================== */
+
+@layer components {
+  .sticker-shadow {
+    box-shadow: 5px 5px 0px 0px #161611;
+  }
+  .sticker-shadow-sm {
+    box-shadow: 3px 3px 0px 0px #161611;
+  }
+  .sticker-card {
+    border: 3px solid #161611;
+    border-radius: 24px;
+    background: #FFFFFF;
+    box-shadow: 5px 5px 0px 0px #161611;
+  }
+  .sticker-pill {
+    border: 3px solid #161611;
+    border-radius: 9999px;
+    box-shadow: 5px 5px 0px 0px #161611;
+    font-family: var(--font-bakbak), var(--font-poppins), sans-serif;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .sticker-pill:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 6px 6px 0px 0px #161611;
+  }
+  .sticker-pill:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px 0px #161611;
+  }
+  .sticker-pill:disabled {
+    opacity: 0.5;
+    box-shadow: 3px 3px 0px 0px #161611;
+    cursor: not-allowed;
+    transform: none;
+  }
+  /* dashed upload card */
+  .sticker-dashed {
+    border: 3px dashed #161611;
+    border-radius: 28px;
+    background: #FFFFFF;
+  }
+}
+
+/* Custom scrollbar for long lists */
+.scroll-plantio::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-plantio::-webkit-scrollbar-track {
+  background: #ECE7D6;
+  border-radius: 8px;
+}
+.scroll-plantio::-webkit-scrollbar-thumb {
+  background: #1F4D36;
+  border-radius: 8px;
+}
+
+/* Page main bottom padding — clears the fixed bottom nav (≈77px) + safe area
+   so the last form control is never hidden behind the nav on initial view.
+   96px = 77px nav + 19px buffer. Pages opt in by adding .plantio-main. */
+.plantio-main {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 96px);
+}
+
+/* Horizontal scroll hint — a subtle fade on the right edge of any
+   .scroll-hint container, signalling there's more to swipe. */
+.scroll-hint {
+  position: relative;
+}
+.scroll-hint::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 8px; /* leave the scrollbar visible */
+  width: 28px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.85) 80%);
+  pointer-events: none;
+  border-radius: 0 0 8px 0;
+}
+.scroll-hint-forest::after {
+  background: linear-gradient(to right, rgba(31, 77, 54, 0) 0%, rgba(31, 77, 54, 0.85) 80%);
+}
+.scroll-hint-cream::after {
+  background: linear-gradient(to right, rgba(246, 243, 234, 0) 0%, rgba(246, 243, 234, 0.9) 80%);
+}
+
+/* Leaflet container always light, no dark inheritance */
+.leaflet-container {
+  background: #AADAFF !important;
+  font-family: var(--font-poppins), sans-serif !important;
+}
+
+/* Loading leaf spin animation */
+@keyframes leaf-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.leaf-spin {
+  animation: leaf-spin 1.6s linear infinite;
+  transform-origin: center;
+}
+@keyframes leaf-bob {
+  0%, 100% { transform: translateY(0) rotate(-8deg); }
+  50% { transform: translateY(-8px) rotate(8deg); }
+}
+.leaf-bob {
+  animation: leaf-bob 1.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-plantio {
+  background: linear-gradient(90deg, #ECE7D6 25%, #F6F3EA 37%, #ECE7D6 63%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 16px;
+}
+
+/* ===================================================================
+   POLISH — focus rings, pop-in animation, sticker-card hover lift
+   =================================================================== */
+
+/* Visible focus ring on every focusable element — keyboard a11y + tactile feel */
+@layer base {
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 3px solid #1F4D36;
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+}
+
+/* Sticker-card hover lift — applies to <a> and clickable cards only (not static
+   info cards). Add `sticker-interactive` to opt in. */
+@layer components {
+  .sticker-interactive {
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .sticker-interactive:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 6px 6px 0px 0px #161611;
+  }
+  .sticker-interactive:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px 0px #161611;
+  }
+}
+
+/* Pop-in animation for cards and banners entering the viewport */
+@keyframes plantio-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.plantio-pop-in {
+  animation: plantio-pop-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Subtle stagger — pair with .plantio-pop-in via inline style `--stagger: N` */
+.plantio-stagger {
+  animation-delay: calc(var(--stagger, 0) * 60ms);
+}
+
+/* Number counter — bumps size briefly when value changes (used for area + price pills) */
+@keyframes plantio-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.plantio-bump {
+  animation: plantio-bump 0.32s ease-out;
+}
+
+/* Soft pulse for live/active indicators (mic button while listening, etc.) */
+@keyframes plantio-soft-pulse {
+  0%, 100% { box-shadow: 3px 3px 0px 0px #161611, 0 0 0 0 rgba(232, 93, 61, 0.45); }
+  50% { box-shadow: 3px 3px 0px 0px #161611, 0 0 0 8px rgba(232, 93, 61, 0); }
+}
+.plantio-soft-pulse {
+  animation: plantio-soft-pulse 1.4s ease-out infinite;
+}
+
+/* Slide-in for the SectionHeader title on first paint */
+@keyframes plantio-title-slide {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.plantio-title-slide {
+  animation: plantio-title-slide 0.4s ease-out both;
+}
+
+/* Reduced motion — respect user setting, kill all our animations */
+@media (prefers-reduced-motion: reduce) {
+  .leaf-spin,
+  .leaf-bob,
+  .skeleton-plantio,
+  .plantio-pop-in,
+  .plantio-bump,
+  .plantio-soft-pulse,
+  .plantio-title-slide,
+  .plantio-slide-up {
+    animation: none !important;
+  }
+}
+
+/* ===================================================================
+   ADDITIONAL POLISH — slide-up, card shimmer on hover, better borders
+   =================================================================== */
+
+/* Slide-up for bottom sheets, banners, and toast-like cards */
+@keyframes plantio-slide-up {
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.plantio-slide-up {
+  animation: plantio-slide-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Subtle shimmer on hover for interactive cards */
+.sticker-card:has(a):hover,
+.sticker-card:has(button):hover {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transform: translate(-0.5px, -0.5px);
+  box-shadow: 6px 6px 0px 0px #161611;
+}
+
+/* Better input styling — consistent with sticker-book */
+input[type="number"],
+input[type="text"],
+select {
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Ensure images in sticker cards don't break rounded borders */
+.sticker-card img {
+  border-radius: 16px;
+}
+
+/* ===================================================================
+   ROUND 4 POLISH — dot patterns, decorative bgs, list stagger, shimmer
+   =================================================================== */
+
+/* Decorative dot pattern — used as a subtle background texture on
+   SectionHeader bands and hero sections. Generated via radial-gradient
+   so it scales without an asset. */
+.plantio-dots {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.5px, transparent 1.5px);
+  background-size: 14px 14px;
+  background-position: 0 0;
+}
+.plantio-dots-ink {
+  background-image: radial-gradient(circle, rgba(22, 22, 17, 0.08) 1.5px, transparent 1.5px);
+  background-size: 14px 14px;
+}
+.plantio-grid {
+  background-image:
+    linear-gradient(rgba(22, 22, 17, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22, 22, 17, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Staggered list item entrance — for history rows, mandi cards, tool rows.
+   Apply .plantio-list-item to each child + set --i inline for stagger. */
+@keyframes plantio-list-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.plantio-list-item {
+  animation: plantio-list-in 0.3s ease-out both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+
+/* Active nav icon bounce — subtle hop when tab becomes active */
+@keyframes plantio-nav-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-3px); }
+  60% { transform: translateY(-1px); }
+}
+.plantio-nav-bounce {
+  animation: plantio-nav-bounce 0.35s ease-out;
+}
+
+/* Drawer slide-in from right */
+@keyframes plantio-drawer-in {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(0); }
+}
+.plantio-drawer-in {
+  animation: plantio-drawer-in 0.25s ease-out both;
+}
+
+/* Shimmer overlay for AI-loading states — a moving sheen across a card */
+@keyframes plantio-sheen {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.plantio-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.plantio-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 50%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  animation: plantio-sheen 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Progress bar at top of viewport — used during AI calls */
+@keyframes plantio-progress {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(200%); }
+}
+.plantio-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 80;
+  overflow: hidden;
+  background: transparent;
+}
+.plantio-progress-bar > span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, #8FD14F, #F5C518);
+  border-right: 2px solid #161611;
+  animation: plantio-progress 1.2s ease-in-out infinite;
+}
+
+/* Hover lift for tool rows + small clickable cards (home page) */
+.tool-row-card {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.tool-row-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0px 0px #161611;
+}
+.tool-row-card:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px #161611;
+}
+
+/* SectionHeader icon badge — small circular icon next to title */
+.sh-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 18px;
+  border: 3px solid #161611;
+  box-shadow: 4px 4px 0px 0px #161611;
+  margin-bottom: 0.75rem;
+}
+
+/* Mini bar chart bars — used in scan-history stats dashboard */
+.plantio-bar {
+  transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Scroll hint chevron — pulses at the right edge of horizontal scroll rows */
+@keyframes plantio-nudge {
+  0%, 100% { transform: translateX(0); opacity: 0.6; }
+  50% { transform: translateX(3px); opacity: 1; }
+}
+.plantio-nudge {
+  animation: plantio-nudge 1.4s ease-in-out infinite;
+}
+
+/* Star button — for mandi favorites */
+.fav-star-on {
+  color: #F5C518;
+  filter: drop-shadow(1px 1px 0 #161611);
+}
+.fav-star-off {
+  color: rgba(22, 22, 17, 0.25);
+}
+
+/* Tab pill — for filter pills (All / Healthy / Issues) */
+.tab-pill {
+  border: 2.5px solid #161611;
+  border-radius: 9999px;
+  padding: 0.4rem 0.9rem;
+  font-family: var(--font-bakbak), var(--font-poppins), sans-serif;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+  box-shadow: 2px 2px 0px 0px #161611;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  cursor: pointer;
+  background: #FFFFFF;
+  color: #161611;
+}
+.tab-pill:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px 0px #161611;
+}
+.tab-pill[aria-pressed="true"] {
+  background: #1F4D36;
+  color: #FFFFFF;
+}
+
+/* Tag chip — for stats / metadata inline */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+  border: 2px solid #161611;
+  background: #F6F3EA;
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-family: var(--font-poppins), sans-serif;
+}
+
+/* Confetti dots — decorative scatter at the top of empty states */
+@keyframes plantio-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.plantio-float {
+  animation: plantio-float 2.4s ease-in-out infinite;
+}
+.plantio-float-2 {
+  animation: plantio-float 2.4s ease-in-out infinite;
+  animation-delay: 0.4s;
+}
+.plantio-float-3 {
+  animation: plantio-float 2.4s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+/* ===================================================================
+   ROUND 5 — Scan & Cure page enhancements
+   =================================================================== */
+
+/* Tip text fade transition — for rotating scan tips */
+@keyframes plantio-tip-fade {
+  0% { opacity: 0; transform: translateY(4px); }
+  15% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+.plantio-tip-fade {
+  animation: plantio-tip-fade 4s ease-in-out both;
+}
+
+/* Stepper step pulse — active step in the scan progress tracker */
+@keyframes plantio-step-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(143, 209, 79, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(143, 209, 79, 0); }
+}
+.plantio-step-pulse {
+  animation: plantio-step-pulse 1.2s ease-out infinite;
+}
+
+/* Gradient bar shimmer — decorative bar on result card top */
+@keyframes plantio-bar-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.plantio-bar-shimmer {
+  background-size: 200% 100%;
+  animation: plantio-bar-shimmer 2.4s linear infinite;
+}
+
+/* Stepper connecting line fill animation */
+@keyframes plantio-line-fill {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+.plantio-line-fill {
+  animation: plantio-line-fill 0.6s ease-out both;
+}
+
+/* Flow connector dot — small decorative dot on the scan→cure flow */
+@keyframes plantio-dot-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+.plantio-dot-bounce {
+  animation: plantio-dot-bounce 1.6s ease-in-out infinite;
+}
+
+/* Severity bar fill */
+@keyframes plantio-severity-fill {
+  0% { width: 0%; }
+  100% { width: var(--severity-width, 50%); }
+}
+.plantio-severity-fill {
+  animation: plantio-severity-fill 0.8s ease-out both;
+}
+
+/* ===================================================================
+   ROUND 6 — Home page visual polish: hero gradient, wave dividers,
+   seasonal spotlight, stats counters, quick-action chips
+   =================================================================== */
+
+/* Hero animated gradient — slow-moving subtle gradient behind hero text */
+@keyframes plantio-hero-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.plantio-hero-gradient {
+  background: linear-gradient(
+    135deg,
+    #1F4D36 0%,
+    #2A6B48 25%,
+    #1F4D36 50%,
+    #3C8C4A 75%,
+    #1F4D36 100%
+  );
+  background-size: 400% 400%;
+  animation: plantio-hero-gradient 12s ease-in-out infinite;
+}
+
+/* Stat counter bump — when the number changes, bump it */
+@keyframes plantio-counter-bump {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.plantio-counter-bump {
+  animation: plantio-counter-bump 0.35s ease-out;
+}
+
+/* Quick-action chip hover */
+.chip-hover {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.chip-hover:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #161611;
+}
+.chip-hover:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0px 0px #161611;
+}
+
+/* ===================================================================
+   ROUND 7 — Deep styling polish: grain textures, ribbon banners,
+   decorative stamps, enhanced shadows, richer transitions,
+   card depth levels, micro-patterns
+   =================================================================== */
+
+/* Grain/noise texture overlay — subtle paper-like feel on the cream bg */
+.plantio-grain {
+  position: relative;
+}
+.plantio-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Decorative stamp corners — like a postage stamp edge on cards */
+.plantio-stamp {
+  position: relative;
+}
+.plantio-stamp::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 4px dotted rgba(22, 22, 17, 0.08);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Ribbon banner — diagonal ribbon in the top-right corner of a card */
+.plantio-ribbon {
+  position: absolute;
+  top: 12px;
+  right: -32px;
+  transform: rotate(45deg);
+  padding: 2px 40px;
+  font-family: var(--font-bakbak), var(--font-poppins), sans-serif;
+  font-size: 0.6rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: #F5C518;
+  color: #161611;
+  border: 2px solid #161611;
+  box-shadow: 1px 1px 0px 0px #161611;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Card depth levels — 3 tiers of shadow for visual hierarchy */
+.plantio-depth-1 {
+  box-shadow: 3px 3px 0px 0px #161611;
+}
+.plantio-depth-2 {
+  box-shadow: 5px 5px 0px 0px #161611;
+}
+.plantio-depth-3 {
+  box-shadow: 7px 7px 0px 0px #161611;
+}
+
+/* Hover lift for depth-2 cards — subtle lift on hover */
+.plantio-depth-2.plantio-interactive,
+.plantio-depth-2:has(a),
+.plantio-depth-2:has(button) {
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.plantio-depth-2.plantio-interactive:hover,
+.plantio-depth-2:has(a):hover,
+.plantio-depth-2:has(button):hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0px 0px #161611;
+}
+
+/* Richer sticker-pill transition — smoother + slight scale on hover */
+.sticker-pill {
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sticker-pill:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0px 0px #161611;
+}
+.sticker-pill:active {
+  transform: translate(2px, 2px) scale(0.97);
+  box-shadow: 2px 2px 0px 0px #161611;
+}
+
+/* Sticker card entrance — slide up with a slight overshoot */
+@keyframes plantio-card-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  70% {
+    transform: translateY(-2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.plantio-card-in {
+  animation: plantio-card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Glow ring for active/selected items — a forest green ring with soft glow */
+.plantio-glow-ring {
+  box-shadow: 0 0 0 3px rgba(31, 77, 54, 0.3), 5px 5px 0px 0px #161611;
+}
+
+/* Wavy divider between sections — organic field-like shape */
+@keyframes plantio-wave {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4px); }
+}
+.plantio-wave-slow {
+  animation: plantio-wave 6s ease-in-out infinite;
+}
+
+/* Leaf scatter — decorative animated leaf positions */
+@keyframes plantio-leaf-float-1 {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-6px) rotate(5deg); }
+}
+@keyframes plantio-leaf-float-2 {
+  0%, 100% { transform: translateY(0) rotate(3deg); }
+  50% { transform: translateY(-8px) rotate(-8deg); }
+}
+.plantio-leaf-1 {
+  animation: plantio-leaf-float-1 3s ease-in-out infinite;
+}
+.plantio-leaf-2 {
+  animation: plantio-leaf-float-2 3.5s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+/* Striped background — subtle diagonal stripes on info panels */
+.plantio-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(22, 22, 17, 0.025) 8px,
+    rgba(22, 22, 17, 0.025) 9px
+  );
+}
+
+/* Crosshatch background — subtle grid pattern on hero sections */
+.plantio-crosshatch {
+  background-image:
+    linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%),
+    linear-gradient(-45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%);
+  background-size: 16px 16px;
+}
+
+/* Embossed text — subtle 3D text effect for hero headings */
+.plantio-embossed {
+  text-shadow:
+    1px 1px 0px rgba(22, 22, 17, 0.2),
+    -1px -1px 0px rgba(255, 255, 255, 0.1);
+}
+
+/* Stitched border — like a notebook/sketchbook edge */
+.plantio-stitched {
+  border: 2px dashed rgba(22, 22, 17, 0.15);
+  border-radius: 20px;
+  outline: 3px solid rgba(22, 22, 17, 0.06);
+  outline-offset: 4px;
+}
+
+/* Typewriter cursor — blinking cursor for AI-generated text areas */
+@keyframes plantio-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.plantio-cursor::after {
+  content: "|";
+  animation: plantio-blink 0.8s step-end infinite;
+  color: #1F4D36;
+  font-weight: bold;
+}
+
+/* Status dot — pulsing dot for live data indicators */
+@keyframes plantio-status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.3); }
+}
+.plantio-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8FD14F;
+  border: 2px solid #161611;
+  animation: plantio-status-pulse 2s ease-in-out infinite;
+}
+
+/* Torn paper edge — bottom decoration for hero sections */
+.plantio-torn-edge {
+  position: relative;
+}
+.plantio-torn-edge::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,6 Q10,0 20,6 T40,6 T60,6 T80,6 T100,6 T120,6 T140,6 T160,6 T180,6 T200,6 V12 H0 Z' fill='%23F6F3EA'/%3E%3C/svg%3E") repeat-x;
+  background-size: 200px 12px;
+  pointer-events: none;
+}
+
+/* Rich tooltip — small card-like tooltip for info hover */
+.plantio-tooltip {
+  position: relative;
+}
+.plantio-tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 6px 12px;
+  background: #161611;
+  color: #F6F3EA;
+  font-size: 0.7rem;
+  font-family: var(--font-poppins), sans-serif;
+  border-radius: 10px;
+  border: 2px solid #161611;
+  box-shadow: 3px 3px 0px 0px rgba(143, 209, 79, 0.5);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 50;
+}
+.plantio-tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Badge shine — subtle animated shine on featured badges */
+@keyframes plantio-badge-shine {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.plantio-badge-shine {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: plantio-badge-shine 3s ease-in-out infinite;
+}
+
+/* Decorative corner fold — top-right paper fold on special cards */
+.plantio-corner-fold {
+  position: relative;
+  overflow: hidden;
+}
+.plantio-corner-fold::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(225deg, #F6F3EA 50%, #ECE7D6 50%);
+  border-bottom: 2px solid #161611;
+  border-left: 2px solid #161611;
+  border-radius: 0 24px 0 0;
+  pointer-events: none;
+}
+
+/* ===================================================================
+   ROUND 8 — Home page deep polish: icon hover, weather transitions,
+   gradient borders, quote marks, progress ring, parallax
+   =================================================================== */
+
+/* Icon hover micro-animation — subtle rotation on parent hover */
+.plantio-icon-hover {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.plantio-icon-hover:hover .plantio-icon-target,
+.plantio-icon-hover:has(:hover) .plantio-icon-target {
+  transform: rotate(-8deg) scale(1.08);
+}
+
+/* Icon bounce on card hover */
+.plantio-icon-bounce:has(:hover) .plantio-icon-target {
+  animation: plantio-icon-pop 0.3s ease-out;
+}
+@keyframes plantio-icon-pop {
+  0% { transform: scale(1) rotate(0deg); }
+  40% { transform: scale(1.15) rotate(-6deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Weather icon transition — smooth swap */
+.plantio-weather-icon {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+}
+.plantio-weather-icon:hover {
+  transform: rotate(10deg) scale(1.05);
+}
+
+/* Gradient border — for weather & special cards */
+.plantio-gradient-border {
+  position: relative;
+}
+.plantio-gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #3C8C4A, #8FD14F, #F5C518);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Tip quote marks — decorative open quote before tip body */
+.plantio-quote::before {
+  content: "\201C";
+  font-size: 2.5rem;
+  line-height: 1;
+  font-family: Georgia, serif;
+  color: rgba(22, 22, 17, 0.12);
+  position: absolute;
+  top: -4px;
+  left: -2px;
+  pointer-events: none;
+}
+
+/* Mini progress ring — for scan count stats */
+.plantio-progress-ring {
+  transform: rotate(-90deg);
+}
+.plantio-progress-ring circle {
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Parallax container — scroll-driven translate-y for hero */
+.plantio-parallax {
+  will-change: transform;
+  transition: transform 0.1s linear;
+}
+
+/* Stitch border variant — uses existing plantio-stitched but with thicker outline */
+.plantio-stitch {
+  border: 2px dashed rgba(22, 22, 17, 0.18);
+  border-radius: 24px;
+  outline: 3px solid rgba(22, 22, 17, 0.08);
+  outline-offset: 5px;
+}
+
+/* Hero greeting shimmer — subtle text shimmer on the hero subtitle */
+@keyframes plantio-text-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.plantio-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.9) 0%,
+    rgba(255,255,255,1) 50%,
+    rgba(255,255,255,0.9) 100%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: plantio-text-shimmer 4s ease-in-out infinite;
+}
+
+/* Enhanced ribbon — more visible version with larger text */
+.plantio-ribbon-lg {
+  position: absolute;
+  top: 14px;
+  right: -36px;
+  transform: rotate(45deg);
+  padding: 3px 44px;
+  font-family: var(--font-bakbak), var(--font-poppins), sans-serif;
+  font-size: 0.72rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #F5C518;
+  color: #161611;
+  border: 2.5px solid #161611;
+  box-shadow: 2px 2px 0px 0px #161611;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Smooth scroll for the entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Section spacing rhythm — generous padding between sections */
+.plantio-section-gap {
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+}
+@media (min-width: 640px) {
+  .plantio-section-gap {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+}
+
+/* Scan card stamp decoration — dotted postage stamp border */
+.plantio-stamp-card {
+  position: relative;
+  overflow: hidden;
+}
+.plantio-stamp-card::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  border: 3px dotted rgba(22, 22, 17, 0.1);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Quick actions gradient bg strip */
+.plantio-quick-strip {
+  background: linear-gradient(135deg, #1F4D36 0%, #3C8C4A 40%, #8FD14F 70%, #F5C518 100%);
+}
+
+/* ===================================================================
+   ROUND 9 — Micro-interactions & polish
+   =================================================================== */
+
+/* Ripple effect on pill buttons */
+@keyframes plantio-ripple {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+.plantio-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.plantio-ripple::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  animation: none;
+  pointer-events: none;
+}
+
+/* Card tilt on hover — subtle 3D tilt effect */
+.plantio-tilt {
+  transition: transform 0.2s ease;
+  transform-style: preserve-3d;
+}
+.plantio-tilt:hover {
+  transform: perspective(800px) rotateY(-1.5deg) rotateX(1deg) translate(-1px, -1px);
+}
+
+/* Glow pulse — for important CTA buttons */
+@keyframes plantio-glow-pulse {
+  0%, 100% { box-shadow: 5px 5px 0px 0px #161611, 0 0 0 0 rgba(143, 209, 79, 0); }
+  50% { box-shadow: 5px 5px 0px 0px #161611, 0 0 12px 4px rgba(143, 209, 79, 0.3); }
+}
+.plantio-glow-pulse {
+  animation: plantio-glow-pulse 2.5s ease-in-out infinite;
+}
+
+/* Floating label — input label that floats up on focus */
+@keyframes plantio-float-up {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-2px); }
+}
+
+/* Success checkmark animation */
+@keyframes plantio-check-in {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.plantio-check-in {
+  animation: plantio-check-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Number ticker — smooth number increment animation */
+@keyframes plantio-tick {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-2px); }
+  75% { transform: translateY(2px); }
+}
+.plantio-tick {
+  animation: plantio-tick 0.15s ease-out;
+}
+
+/* Decorative seedling — small animated seedling icon */
+@keyframes plantio-seedling {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.08); }
+}
+.plantio-seedling {
+  animation: plantio-seedling 2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* Reduced motion — kill the new animations too */
+@media (prefers-reduced-motion: reduce) {
+  .plantio-list-item,
+  .plantio-sheen::after,
+  .plantio-progress-bar > span,
+  .plantio-nudge,
+  .plantio-float,
+  .plantio-float-2,
+  .plantio-float-3,
+  .plantio-tip-fade,
+  .plantio-step-pulse,
+  .plantio-bar-shimmer,
+  .plantio-line-fill,
+  .plantio-dot-bounce,
+  .plantio-severity-fill,
+  .plantio-hero-gradient,
+  .plantio-counter-bump,
+  .plantio-card-in,
+  .plantio-wave-slow,
+  .plantio-leaf-1,
+  .plantio-leaf-2,
+  .plantio-status-dot,
+  .plantio-badge-shine,
+  .plantio-text-shimmer,
+  .plantio-weather-icon,
+  .plantio-parallax,
+  .plantio-ripple::after,
+  .plantio-tilt,
+  .plantio-glow-pulse,
+  .plantio-check-in,
+  .plantio-tick,
+  .plantio-seedling {
+    animation: none !important;
+    transition: none !important;
+  }
+}
