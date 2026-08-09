@@ -158,7 +158,7 @@ export default function ScanPage() {
 
     const controller = new AbortController();
     abortRef.current = controller;
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+        const timeout = setTimeout(() => controller.abort(), 30_000);
 
     try {
       const res = await fetch("/api/scan", {
