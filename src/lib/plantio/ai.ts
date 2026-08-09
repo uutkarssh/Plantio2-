@@ -54,12 +54,19 @@ async function callGemini(body: Record<string, unknown>): Promise<string> {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
+    console.error("[Plantio AI] Gemini error", res.status, errText.slice(0, 500));
+    if (res.status === 400) throw new Error("Bad request — model may be unavailable. Try a different model.");
+    if (res.status === 403) throw new Error("GEMINI_API_KEY is invalid or expired. Get a new key from https://aistudio.google.com/apikey");
+    if (res.status === 429) throw new Error("Rate limited — too many requests. Wait 1 minute and try again.");
     throw new Error(`Gemini API error ${res.status}: ${errText.slice(0, 300)}`);
   }
 
   const json: GeminiResponse = await res.json();
   const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Empty AI response");
+  if (!text) {
+    console.error("[Plantio AI] Empty response:", JSON.stringify(json).slice(0, 500));
+    throw new Error("Empty AI response");
+  }
   return text;
 }
 
