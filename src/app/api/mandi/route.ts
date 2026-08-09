@@ -69,7 +69,9 @@ async function fetchLive(crop: string, state?: string): Promise<MandiPrice[] | n
     url.searchParams.set("api-key", apiKey);
     url.searchParams.set("format", "json");
     url.searchParams.set("limit", "50");
-    url.searchParams.set("filters[state]", state || "");
+        if (state) {
+      url.searchParams.set("filters[state]", state);
+        }
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
     const res = await fetch(url.toString(), { signal: ctrl.signal });
