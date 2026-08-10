@@ -342,16 +342,7 @@ useEffect(() => {
       {/* CREAM content */}
       <section className="plantio-grain px-5 py-4 bg-cream plantio-section-gap">
         <div className="mx-auto max-w-2xl space-y-4">
-          {/* ---- Sample data notice ---- */}
-          <div className="rounded-2xl border-[2.5px] border-ink bg-gold/10 p-3 flex gap-2">
-            <Info className="w-4 h-4 text-forest shrink-0 mt-0.5" strokeWidth={2.5} />
-            <p className="text-xs text-ink/80">
-              <span className="font-display text-[11px] font-bold uppercase">
-                {t("weather.sampleData")}:{" "}
-              </span>
-              {t("weather.sampleDataNote")}
-            </p>
-          </div>
+         
 
           {/* ---- Current Conditions Card ---- */}
           <StickerCard className="bg-white plantio-stripes">
@@ -415,17 +406,16 @@ useEffect(() => {
             </div>
 
             {/* Location + time */}
-            <div className="mt-3 flex items-center gap-4 text-xs text-ink/60">
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" strokeWidth={2.5} />
-                {t("weather.defaultLocation")}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
-                {t("weather.lastUpdated")} {timeStr}
-              </span>
-            </div>
-          </StickerCard>
+<div className="mt-3 flex items-center gap-4 text-xs text-ink/60">
+  <span className="flex items-center gap-1">
+    <MapPin className="w-3.5 h-3.5" strokeWidth={2.5} />
+    {locationName}
+  </span>
+  <span className="flex items-center gap-1">
+    <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
+    {t("weather.lastUpdated")} {timeStr}
+  </span>
+</div>
 
           {/* ---- 5-Day Forecast ---- */}
           <StickerCard className="bg-white plantio-card-in">
