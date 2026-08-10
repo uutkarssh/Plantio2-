@@ -1,4 +1,7 @@
 "use client";
+
+import { useEffect, useState } from "react";
+
 import {
   Sun,
   CloudSun,
@@ -57,23 +60,33 @@ interface FarmingWindow {
   note: string;
 }
 
-const CURRENT = {
-  tempC: 27,
-  feelsLikeC: 29,
-  humidity: 62,
-  windKmh: 14,
-  condition: "partly-cloudy" as const,
-  soilMoisturePct: 48,
-  location: "Madhya Pradesh, India",
+const EMPTY_CURRENT = {
+  tempC: 0,
+  feelsLikeC: 0,
+  humidity: 0,
+  windKmh: 0,
+  condition: "sun" as const,
+  soilMoisturePct: 0,
+  location: "Your current location",
 };
 
-const FORECAST: ForecastDay[] = [
-  { day: "Mon", icon: "cloud-sun", high: 28, low: 14, humidity: 58, windKmh: 12, rainMm: 0 },
-  { day: "Tue", icon: "cloud-sun", high: 27, low: 13, humidity: 60, windKmh: 14, rainMm: 0 },
-  { day: "Wed", icon: "cloud", high: 25, low: 15, humidity: 72, windKmh: 18, rainMm: 2 },
-  { day: "Thu", icon: "cloud-rain", high: 22, low: 16, humidity: 85, windKmh: 22, rainMm: 12 },
-  { day: "Fri", icon: "cloud-drizzle", high: 24, low: 14, humidity: 68, windKmh: 10, rainMm: 3 },
-];
+function weatherCodeToIcon(code: number): ForecastDay["icon"] {
+  if (code === 0 || code === 1) return "sun";
+  if (code === 2) return "cloud-sun";
+  if (code === 3) return "cloud";
+  if (code === 45 || code === 48) return "cloud-fog";
+  if ([51, 53, 55, 56, 57].includes(code)) return "cloud-drizzle";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "cloud-rain";
+  return "cloud";
+}
+
+function getDayName(dateString: string, index: number): string {
+  if (index === 0) return "Today";
+
+  return new Date(`${dateString}T12:00:00`).toLocaleDateString([], {
+    weekday: "short",
+  });
+}
 
 const ALERTS: AlertItem[] = [
   {
@@ -177,10 +190,134 @@ function SoilMoistureBar({ pct }: { pct: number }) {
    =================================================================== */
 export default function WeatherPage() {
   const { t } = useI18n();
-
+  const [current, setCurrent] = useState(EMPTY_CURRENT);
+const [forecast, setForecast] = useState<ForecastDay[]>([]);
+const [weatherLoading, setWeatherLoading] = useState(true);
+const [weatherError, setWeatherError] = useState(false);
+const [locationName, setLocationName] = useState("Your current location");
+  
   const now = new Date();
   const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+useEffect(() => {
+  let cancelled = false;
 
+  const loadWeather = async (lat: number, lon: number) => {
+    try {
+      const url =
+        `https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${lat}` +
+        `&longitude=${lon}` +
+        `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code` +
+        `&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,wind_speed_10m_max,precipitation_sum,weather_code` +
+        `&forecast_days=5` +
+        `&timezone=auto`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("Weather request failed");
+      }
+
+      const data = await response.json();
+
+      if (cancelled || !data.current || !data.daily) return;
+
+      const c = data.current;
+      const d = data.daily;
+
+      setCurrent({
+        tempC: Math.round(c.temperature_2m),
+        feelsLikeC: Math.round(c.apparent_temperature),
+        humidity: Math.round(c.relative_humidity_2m),
+        windKmh: Math.round(c.wind_speed_10m),
+        condition: weatherCodeToIcon(c.weather_code),
+        soilMoisturePct: Math.round(c.relative_humidity_2m),
+        location: "Your current location",
+      });
+
+      const realForecast: ForecastDay[] = d.time.map(
+        (date: string, index: number) => ({
+          day: getDayName(date, index),
+          icon: weatherCodeToIcon(d.weather_code[index]),
+          high: Math.round(d.temperature_2m_max[index]),
+          low: Math.round(d.temperature_2m_min[index]),
+          humidity: Math.round(d.relative_humidity_2m_mean[index]),
+          windKmh: Math.round(d.wind_speed_10m_max[index]),
+          rainMm: Math.round(d.precipitation_sum[index] * 10) / 10,
+        })
+      );
+
+      setForecast(realForecast);
+      setWeatherError(false);
+    } catch (error) {
+      console.error("Weather error:", error);
+
+      if (!cancelled) {
+        setWeatherError(true);
+      }
+    } finally {
+      if (!cancelled) {
+        setWeatherLoading(false);
+      }
+    }
+  };
+
+  try {
+    const cached = sessionStorage.getItem("plantio-session-location");
+
+    if (cached) {
+      const loc = JSON.parse(cached);
+
+      if (typeof loc.lat === "number" && typeof loc.lng === "number") {
+        loadWeather(loc.lat, loc.lng);
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+  } catch {}
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        try {
+          sessionStorage.setItem(
+            "plantio-session-location",
+            JSON.stringify({
+              lat,
+              lng: lon,
+              isDefault: false,
+            })
+          );
+        } catch {}
+
+        loadWeather(lat, lon);
+      },
+      () => {
+        if (!cancelled) {
+          setWeatherError(true);
+          setWeatherLoading(false);
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 15_000,
+        maximumAge: 10 * 60 * 1000,
+      }
+    );
+  } else {
+    setWeatherError(true);
+    setWeatherLoading(false);
+  }
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+  
   return (
     <main className="flex-1 pb-[calc(env(safe-area-inset-bottom)+96px)]">
       {/* FOREST header */}
