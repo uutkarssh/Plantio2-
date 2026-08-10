@@ -155,10 +155,10 @@ export async function POST(req: NextRequest) {
       ? Math.min(1, Math.max(0, Number(parsed.confidence)))
       : 0;
 
-    // Important: plant identification and disease certainty are different things.
-    // If Gemini identifies the plant confidently but cannot confirm a disease,
-    // do not send the frontend into its "photo unclear" state.
-    const identifiedWithoutDisease = Boolean(plantName) && !diseaseName && confidence >= 0.7;
+    // Plant identification and disease certainty are separate.
+    // If Gemini can identify the plant but cannot confirm a disease, keep the
+    // result usable instead of sending the frontend into its "photo unclear" state.
+    const identifiedWithoutDisease = Boolean(plantName) && !diseaseName;
 
     const result: ScanResult = {
       plant_name: plantName,
