@@ -3,31 +3,19 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/auth/supabase-browser";
 
 /**
- * Plantio auth middleware.
+ * Plantio authentication middleware.
  *
- * Responsibilities (minimal & focused — does NOT touch any non-auth route):
+ * Behaviour:
+ * - /auth/* is public. Authenticated users are redirected to /.
+ * - Normal application pages require a Plantio Supabase session.
+ * - /api/* and static Next.js/public assets are left untouched so API routes
+ *   can return their own errors and assets are never redirected to /auth.
  *
- * 1.  For requests to `/auth/*`:
- *     - If a valid Supabase session cookie exists → refresh it and redirect
- *       to `/` so already-authenticated users never see the login form.
- *     - If the cookie is missing or invalid → pass through to the auth page.
- *     - On refresh failure → clear the stale cookie and pass through.
- *
- * 2.  For all other routes: do nothing. The existing Plantio pages remain
- *     public/anonymous — this matches the requirement to NOT break any
- *     existing functionality (AI, Scan, Mandi, Weather, Irrigation, etc.).
- *
- * Why refresh here?
- *   `supabase.auth.refreshSession` rotates the access token server-side and
- *   writes the new session back to the cookie. This keeps long-lived sessions
- *   alive even if the user never visits a client component that triggers
- *   auto-refresh, and prevents the auth page from briefly flashing before
- *   the client-side redirect kicks in.
- *
- * No service-role key is used here — only the anon key, so RLS still applies.
+ * The session is stored by the browser auth client in AUTH_COOKIE_NAME.
+ * We validate it with Supabase before allowing protected pages through.
  */
 
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 interface StoredSession {
   access_token: string;
@@ -44,32 +32,31 @@ function parseSessionCookie(raw: string | undefined): StoredSession | null {
       return parsed as StoredSession;
     }
   } catch {
-    /* malformed cookie — ignore */
+    // Malformed cookie — treat the request as unauthenticated.
   }
   return null;
 }
 
-export async function middleware(req: NextRequest) {
-  // Only act on /auth routes — leave every other route untouched.
-  if (!req.nextUrl.pathname.startsWith("/auth")) {
-    return NextResponse.next();
-  }
+function isPublicPath(pathname: string) {
+  return (
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/api/") ||
+    pathname === "/api" ||
+    pathname.startsWith("/_next/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    /\.[^/]+$/.test(pathname)
+  );
+}
 
-  const stored = parseSessionCookie(req.cookies.get(AUTH_COOKIE_NAME)?.value);
-  if (!stored) {
-    // No session — show the auth page.
-    return NextResponse.next();
-  }
-
+async function validateSession(stored: StoredSession) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    // Misconfigured — pass through; the AuthForm will surface a friendly error.
-    return NextResponse.next();
-  }
+  if (!url || !anonKey) return null;
 
-  // Stateless, per-request client — no persistence, no auto-refresh, no cookie
-  // writes from this client (we manage the cookie explicitly below).
   const supabase = createClient(url, anonKey, {
     auth: {
       persistSession: false,
@@ -78,32 +65,82 @@ export async function middleware(req: NextRequest) {
     },
   });
 
-  // Try to refresh the session using the stored refresh token.
-  const { data, error } = await supabase.auth.refreshSession({
+  const { data, error } = await supabase.auth.setSession({
+    access_token: stored.access_token,
     refresh_token: stored.refresh_token,
   });
 
-  // Refresh failed → session is invalid. Clear the stale cookie so the user
-  // can log in fresh, then pass through to the auth page.
-  if (error || !data.session) {
-    const res = NextResponse.next();
+  if (error || !data.session) return null;
+  return data.session;
+}
+
+export async function middleware(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+
+  // Public routes and static assets must never be redirected to /auth.
+  if (isPublicPath(pathname)) {
+    // /auth is special: if already signed in, skip the login form.
+    if (pathname.startsWith("/auth")) {
+      const stored = parseSessionCookie(req.cookies.get(AUTH_COOKIE_NAME)?.value);
+      if (!stored) return NextResponse.next();
+
+      const session = await validateSession(stored);
+      if (!session) {
+        const res = NextResponse.next();
+        res.cookies.delete(AUTH_COOKIE_NAME);
+        return res;
+      }
+
+      const res = NextResponse.redirect(new URL("/", req.url));
+      res.cookies.set({
+        name: AUTH_COOKIE_NAME,
+        value: encodeURIComponent(
+          JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at: session.expires_at,
+          })
+        ),
+        path: "/",
+        maxAge: SESSION_MAX_AGE_SECONDS,
+        sameSite: "lax",
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+      });
+      return res;
+    }
+
+    return NextResponse.next();
+  }
+
+  // Every normal Plantio page is protected.
+  const stored = parseSessionCookie(req.cookies.get(AUTH_COOKIE_NAME)?.value);
+  if (!stored) {
+    const loginUrl = new URL("/auth", req.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  const session = await validateSession(stored);
+  if (!session) {
+    const loginUrl = new URL("/auth", req.url);
+    loginUrl.searchParams.set("next", pathname);
+    const res = NextResponse.redirect(loginUrl);
     res.cookies.delete(AUTH_COOKIE_NAME);
     return res;
   }
 
-  // Session is valid — redirect to the homepage.
-  const res = NextResponse.redirect(new URL("/", req.url));
-
-  // Persist the refreshed session back into the cookie so the next request
-  // uses the new tokens (avoids re-refreshing on every navigation).
-  const refreshedSession: StoredSession = {
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_at: data.session.expires_at,
-  };
+  // Keep the refreshed session in the same cookie used by the browser client.
+  const res = NextResponse.next();
   res.cookies.set({
     name: AUTH_COOKIE_NAME,
-    value: encodeURIComponent(JSON.stringify(refreshedSession)),
+    value: encodeURIComponent(
+      JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_at: session.expires_at,
+      })
+    ),
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
     sameSite: "lax",
@@ -115,7 +152,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Only run on /auth routes — every other path is bypassed for zero impact
-  // on existing Plantio pages (homepage, scan, mandi, weather, etc.).
-  matcher: ["/auth/:path*"],
+  // Run on application routes while excluding Next internals and common
+  // static files. API routes are handled separately by their own handlers.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
