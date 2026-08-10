@@ -354,7 +354,7 @@ useEffect(() => {
                 <h2 className="font-display text-xl font-bold uppercase leading-tight">
                   {t("weather.currentConditions")}
                 </h2>
-                <p className="text-xs opacity-70">{t("weather.defaultLocation")}</p>
+                <p className="text-xs opacity-70">{locationName}</p>
               </div>
             </div>
 
