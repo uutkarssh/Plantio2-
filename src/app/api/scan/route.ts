@@ -145,20 +145,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const plantName = typeof parsed.plant_name === "string" && parsed.plant_name.trim()
+      ? parsed.plant_name.trim()
+      : null;
+    const diseaseName = typeof parsed.disease_name === "string" && parsed.disease_name.trim()
+      ? parsed.disease_name.trim()
+      : null;
+    const confidence = Number.isFinite(parsed.confidence)
+      ? Math.min(1, Math.max(0, Number(parsed.confidence)))
+      : 0;
+
+    // Important: plant identification and disease certainty are different things.
+    // If Gemini identifies the plant confidently but cannot confirm a disease,
+    // do not send the frontend into its "photo unclear" state.
+    const identifiedWithoutDisease = Boolean(plantName) && !diseaseName && confidence >= 0.7;
+
     const result: ScanResult = {
-      plant_name: typeof parsed.plant_name === "string" ? parsed.plant_name : null,
+      plant_name: plantName,
       plant_name_hi: typeof parsed.plant_name_hi === "string" ? parsed.plant_name_hi : null,
       plant_name_local: typeof parsed.plant_name_local === "string" ? parsed.plant_name_local : null,
-      is_healthy: Boolean(parsed.is_healthy),
-      disease_name: typeof parsed.disease_name === "string" ? parsed.disease_name : null,
+      is_healthy: Boolean(parsed.is_healthy) || identifiedWithoutDisease,
+      disease_name: diseaseName,
       disease_name_hi: typeof parsed.disease_name_hi === "string" ? parsed.disease_name_hi : null,
-      confidence: Number.isFinite(parsed.confidence)
-        ? Math.min(1, Math.max(0, Number(parsed.confidence)))
-        : 0,
+      confidence,
       symptoms_summary:
-        typeof parsed.symptoms_summary === "string" && parsed.symptoms_summary.trim()
-          ? parsed.symptoms_summary
-          : UNCERTAIN.symptoms_summary,
+        identifiedWithoutDisease
+          ? (typeof parsed.symptoms_summary === "string" && parsed.symptoms_summary.trim()
+              ? parsed.symptoms_summary
+              : "The plant was identified, but no specific disease could be confirmed from this photo.")
+          : (typeof parsed.symptoms_summary === "string" && parsed.symptoms_summary.trim()
+              ? parsed.symptoms_summary
+              : UNCERTAIN.symptoms_summary),
       symptoms_summary_hi:
         typeof parsed.symptoms_summary_hi === "string" && parsed.symptoms_summary_hi.trim()
           ? parsed.symptoms_summary_hi
