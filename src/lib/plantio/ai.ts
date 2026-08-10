@@ -46,30 +46,83 @@ type GeminiResponse = {
 };
 
 async function callGemini(body: Record<string, unknown>): Promise<string> {
-  const res = await fetch(`${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${getApiKey()}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const maxAttempts = 3;
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    console.error("[Plantio AI] Gemini error", res.status, errText.slice(0, 500));
-    if (res.status === 400) throw new Error("Bad request — model may be unavailable. Try a different model.");
-    if (res.status === 403) throw new Error("GEMINI_API_KEY is invalid or expired. Get a new key from https://aistudio.google.com/apikey");
-    if (res.status === 404) throw new Error(`Model "${GEMINI_MODEL}" not found — it may have been deprecated. Check https://ai.google.dev/gemini-api/docs/models for current model names.`);
-    if (res.status === 429) throw new Error("Rate limited — too many requests. Wait 1 minute and try again.");
-    throw new Error(`Gemini API error ${res.status}: ${errText.slice(0, 300)}`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(
+        `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${getApiKey()}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
+
+      if (res.ok) {
+        const json: GeminiResponse = await res.json();
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!text) {
+          console.error(
+            "[Plantio AI] Empty response:",
+            JSON.stringify(json).slice(0, 500)
+          );
+          throw new Error("Empty AI response");
+        }
+
+        return text;
+      }
+
+      const errText = await res.text().catch(() => "");
+      console.error(
+        `[Plantio AI] Gemini error attempt ${attempt}:`,
+        res.status,
+        errText.slice(0, 500)
+      );
+
+      // These errors can be temporary, so retry them.
+      if (res.status === 429 || res.status === 500 || res.status === 502 || res.status === 503) {
+        lastError = new Error(`Gemini temporary error ${res.status}`);
+
+        if (attempt < maxAttempts) {
+          const delay = 1000 * Math.pow(2, attempt - 1);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+
+      // Permanent/configuration errors should not be retried.
+      if (res.status === 400) {
+        throw new Error("Bad request sent to Gemini.");
+      }
+
+      if (res.status === 403) {
+        throw new Error("GEMINI_API_KEY is invalid, expired, or not permitted.");
+      }
+
+      if (res.status === 404) {
+        throw new Error(`Gemini model "${GEMINI_MODEL}" was not found.`);
+      }
+
+      throw new Error(
+        `Gemini API error ${res.status}: ${errText.slice(0, 300)}`
+      );
+    } catch (error) {
+      lastError =
+        error instanceof Error ? error : new Error("Unknown Gemini error");
+
+      if (attempt < maxAttempts) {
+        const delay = 1000 * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+    }
   }
 
-  const json: GeminiResponse = await res.json();
-  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    console.error("[Plantio AI] Empty response:", JSON.stringify(json).slice(0, 500));
-    throw new Error("Empty AI response");
-  }
-  return text;
-}
+  throw lastError ?? new Error("Gemini API request failed");
+    }
 
 /* Extract a JSON object from a possibly-prose model response. */
 export function extractJson(text: string): string | null {
