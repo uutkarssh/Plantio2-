@@ -3,19 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
-import { supabaseBrowser } from "@/lib/auth/supabase-browser";
+import { signOut } from "firebase/auth";
+import { firebaseAuth } from "@/lib/firebase/config";
 import { cn } from "@/lib/utils";
-
-/**
- * Reusable Plantio logout button.
- *
- * Calls `supabase.auth.signOut()` and redirects to `/auth` on success.
- * Renders in the same sticker-pill visual language as the rest of the app.
- *
- * Usage:
- *   <LogoutButton variant="outline" size="md" />
- *   <LogoutButton className="custom-classes" label="Sign out" />
- */
 
 type Variant = "forest" | "outline" | "warn" | "ghost";
 type Size = "sm" | "md" | "lg";
@@ -45,9 +35,7 @@ export function LogoutButton({
   variant?: Variant;
   size?: Size;
   label?: string;
-  /** Where to send the user after sign-out. Defaults to /auth. */
   redirectTo?: string;
-  /** Optional callback after a successful sign-out (runs before redirect). */
   onLoggedOut?: () => void;
 }) {
   const router = useRouter();
@@ -55,21 +43,15 @@ export function LogoutButton({
   const [error, setError] = useState<string | null>(null);
 
   async function handleLogout() {
-    if (loading) return; // Prevent double-clicks
+    if (loading) return;
     setLoading(true);
     setError(null);
     try {
-      const { error } = await supabaseBrowser.auth.signOut();
-      if (error) {
-        setError("Couldn't sign out. Please try again.");
-        setLoading(false);
-        return;
-      }
+      await signOut(firebaseAuth);
       onLoggedOut?.();
-      router.push(redirectTo);
-      router.refresh();
-    } catch (err) {
-      setError("Something went wrong. Please try again.");
+      window.location.replace(redirectTo);
+    } catch {
+      setError("Couldn't sign out. Please try again.");
       setLoading(false);
     }
   }
@@ -87,14 +69,10 @@ export function LogoutButton({
         SIZE_CLASSES[size],
         className
       )}
+      title={error || undefined}
     >
-      {loading ? (
-        <Loader2 className="w-5 h-5 animate-spin" strokeWidth={2.5} />
-      ) : (
-        <LogOut className="w-5 h-5" strokeWidth={2.5} />
-      )}
+      {loading ? <Loader2 className="w-5 h-5 animate-spin" strokeWidth={2.5} /> : <LogOut className="w-5 h-5" strokeWidth={2.5} />}
       {loading ? "Signing out..." : label}
-      {error && <span className="sr-only">{error}</span>}
     </button>
   );
 }
