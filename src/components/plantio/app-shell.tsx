@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ErrorBoundary } from "./error-boundary";
 import { BottomNav } from "./bottom-nav";
 import { HamburgerDrawer } from "./drawer";
@@ -9,6 +9,16 @@ import { TopBar } from "./top-bar";
 import { InstallBanner } from "./install-banner";
 import { LoadingScreen } from "./loading-screen";
 import { I18nProvider } from "@/lib/plantio/i18n";
+
+/* Auth routes (login / signup / forgot password) render WITHOUT the app
+ * chrome (TopBar, BottomNav, HamburgerDrawer, AskPlantioModal, InstallBanner).
+ * They have their own full-screen layout and don't make sense for users who
+ * aren't signed in yet. ErrorBoundary + I18n + SplashGate are kept so the
+ * auth page still gets the branded loading splash and i18n support. */
+function useIsAuthRoute() {
+  const pathname = usePathname();
+  return Boolean(pathname && pathname.startsWith("/auth"));
+}
 
 /* Loading splash shown on first cold boot of the app (uses uploaded splash image) */
 function SplashGate({ children }: { children: React.ReactNode }) {
@@ -53,7 +63,23 @@ function useServiceWorker() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const isAuthRoute = useIsAuthRoute();
   useServiceWorker();
+
+  // Auth routes (login / signup / forgot password) render without app chrome.
+  // They have their own full-screen layout. ErrorBoundary + I18n + SplashGate
+  // are preserved so auth still gets the branded loading splash and i18n.
+  if (isAuthRoute) {
+    return (
+      <ErrorBoundary>
+        <I18nProvider>
+          <SplashGate>
+            <div className="min-h-screen bg-cream">{children}</div>
+          </SplashGate>
+        </I18nProvider>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary>
