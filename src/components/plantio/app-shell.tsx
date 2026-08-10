@@ -11,6 +11,7 @@ import { AskPlantioModal } from "./ask-plantio-modal";
 import { TopBar } from "./top-bar";
 import { InstallBanner } from "./install-banner";
 import { LoadingScreen } from "./loading-screen";
+import { LogoutButton } from "./logout-button";
 import { I18nProvider } from "@/lib/plantio/i18n";
 
 function useIsAuthRoute() {
@@ -20,41 +21,60 @@ function useIsAuthRoute() {
 
 function SplashGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
+
   useEffect(() => {
     const KEY = "plantio-splash-seen";
-    const seen = sessionStorage.getItem(KEY);
-    if (seen) queueMicrotask(() => setReady(true));
-    else {
-      const t = setTimeout(() => {
+    try {
+      if (sessionStorage.getItem(KEY)) {
+        setReady(true);
+        return;
+      }
+      // Keep the first-load branding cue short; the old 1.6s gate made the
+      // homepage feel frozen before any useful content could be interacted with.
+      const t = window.setTimeout(() => {
         sessionStorage.setItem(KEY, "1");
         setReady(true);
-      }, 1600);
-      return () => clearTimeout(t);
+      }, 350);
+      return () => window.clearTimeout(t);
+    } catch {
+      setReady(true);
     }
   }, []);
+
   if (!ready) return <LoadingScreen />;
   return <>{children}</>;
 }
 
 function useServiceWorker() {
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
-    const onLoad = () => navigator.serviceWorker.register("/sw.js").catch((err) => console.warn("SW registration failed:", err));
+    if (
+      typeof window === "undefined" ||
+      !("serviceWorker" in navigator) ||
+      process.env.NODE_ENV !== "production"
+    ) return;
+
+    const onLoad = () => {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch((err) => console.warn("SW registration failed:", err));
+    };
     window.addEventListener("load", onLoad);
     return () => window.removeEventListener("load", onLoad);
   }, []);
 }
 
 function FirebaseAuthGate({ children }: { children: React.ReactNode }) {
-  const isAuthRoute = useIsAuthRoute();
-  const [checking, setChecking] = useState(true);
+  const pathname = usePathname();
+  const isAuthRoute = Boolean(pathname && pathname.startsWith("/auth"));
+  const [checking, setChecking] = useState(!isAuthRoute);
 
   useEffect(() => {
     if (isAuthRoute) {
-      queueMicrotask(() => setChecking(false));
+      setChecking(false);
       return;
     }
 
+    setChecking(true);
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
       if (!user) {
         window.location.replace("/auth");
@@ -68,6 +88,23 @@ function FirebaseAuthGate({ children }: { children: React.ReactNode }) {
 
   if (checking) return <LoadingScreen />;
   return <>{children}</>;
+}
+
+function SettingsAccountAction() {
+  const pathname = usePathname();
+  if (pathname !== "/settings") return null;
+
+  return (
+    <div className="mx-auto w-full max-w-2xl px-5 pb-6">
+      <div className="rounded-2xl border-[3px] border-ink bg-white p-4 shadow-[4px_4px_0px_0px_#161611] flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-display text-sm font-bold uppercase text-ink">Account</p>
+          <p className="text-xs text-ink/60 mt-0.5">Sign out of this Plantio account</p>
+        </div>
+        <LogoutButton variant="warn" size="sm" />
+      </div>
+    </div>
+  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -94,7 +131,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <HamburgerDrawer />
           <AskPlantioModal />
           <SplashGate>
-            <div className="min-h-screen flex flex-col bg-cream plantio-main">{children}</div>
+            <div className="min-h-screen flex flex-col bg-cream plantio-main">
+              {children}
+              <SettingsAccountAction />
+            </div>
             <BottomNav />
             <InstallBanner />
           </SplashGate>
