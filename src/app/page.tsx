@@ -402,7 +402,7 @@ export default function HomePage() {
             setWeatherLoading(false);
           }
         },
-        { enableHighAccuracy: true, timeout: 10_000, maximumAge: 5 * 60 * 1000 }
+        { enableHighAccuracy: false, timeout: 15_000, maximumAge: 10 * 60 * 1000 }
       );
     } else {
       setWeatherFailed(true);

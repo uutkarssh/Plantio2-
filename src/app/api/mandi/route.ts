@@ -65,11 +65,20 @@ async function fetchLive(crop: string, state?: string): Promise<MandiPrice[] | n
   const apiKey = process.env.AGMARKNET_API_KEY || process.env.DATA_GOV_IN_API_KEY;
   if (!apiKey) return null;
   try {
-    const url = new URL("https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0078");
+    const url = new URL("https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070");
     url.searchParams.set("api-key", apiKey);
     url.searchParams.set("format", "json");
-    url.searchParams.set("limit", "50");
-    url.searchParams.set("filters[state]", state || "");
+    url.searchParams.set("limit", "1000");
+    if (crop) {
+  url.searchParams.set("filters[commodity]", crop);
+}
+
+if (state) {
+  url.searchParams.set("filters[state]", state);
+}
+        if (state) {
+      url.searchParams.set("filters[state]", state);
+        }
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
     const res = await fetch(url.toString(), { signal: ctrl.signal });

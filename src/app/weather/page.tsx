@@ -1,4 +1,7 @@
 "use client";
+
+import { useEffect, useState } from "react";
+
 import {
   Sun,
   CloudSun,
@@ -57,23 +60,33 @@ interface FarmingWindow {
   note: string;
 }
 
-const CURRENT = {
-  tempC: 27,
-  feelsLikeC: 29,
-  humidity: 62,
-  windKmh: 14,
-  condition: "partly-cloudy" as const,
-  soilMoisturePct: 48,
-  location: "Madhya Pradesh, India",
+const EMPTY_CURRENT = {
+  tempC: 0,
+  feelsLikeC: 0,
+  humidity: 0,
+  windKmh: 0,
+  condition: "sun" as const,
+  soilMoisturePct: 0,
+  location: "Your current location",
 };
 
-const FORECAST: ForecastDay[] = [
-  { day: "Mon", icon: "cloud-sun", high: 28, low: 14, humidity: 58, windKmh: 12, rainMm: 0 },
-  { day: "Tue", icon: "cloud-sun", high: 27, low: 13, humidity: 60, windKmh: 14, rainMm: 0 },
-  { day: "Wed", icon: "cloud", high: 25, low: 15, humidity: 72, windKmh: 18, rainMm: 2 },
-  { day: "Thu", icon: "cloud-rain", high: 22, low: 16, humidity: 85, windKmh: 22, rainMm: 12 },
-  { day: "Fri", icon: "cloud-drizzle", high: 24, low: 14, humidity: 68, windKmh: 10, rainMm: 3 },
-];
+function weatherCodeToIcon(code: number): ForecastDay["icon"] {
+  if (code === 0 || code === 1) return "sun";
+  if (code === 2) return "cloud-sun";
+  if (code === 3) return "cloud";
+  if (code === 45 || code === 48) return "cloud-fog";
+  if ([51, 53, 55, 56, 57].includes(code)) return "cloud-drizzle";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "cloud-rain";
+  return "cloud";
+}
+
+function getDayName(dateString: string, index: number): string {
+  if (index === 0) return "Today";
+
+  return new Date(`${dateString}T12:00:00`).toLocaleDateString([], {
+    weekday: "short",
+  });
+}
 
 const ALERTS: AlertItem[] = [
   {
@@ -177,10 +190,134 @@ function SoilMoistureBar({ pct }: { pct: number }) {
    =================================================================== */
 export default function WeatherPage() {
   const { t } = useI18n();
-
+  const [current, setCurrent] = useState(EMPTY_CURRENT);
+const [forecast, setForecast] = useState<ForecastDay[]>([]);
+const [weatherLoading, setWeatherLoading] = useState(true);
+const [weatherError, setWeatherError] = useState(false);
+const [locationName, setLocationName] = useState("Your current location");
+  
   const now = new Date();
   const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+useEffect(() => {
+  let cancelled = false;
 
+  const loadWeather = async (lat: number, lon: number) => {
+    try {
+      const url =
+        `https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${lat}` +
+        `&longitude=${lon}` +
+        `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code` +
+        `&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,wind_speed_10m_max,precipitation_sum,weather_code` +
+        `&forecast_days=5` +
+        `&timezone=auto`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("Weather request failed");
+      }
+
+      const data = await response.json();
+
+      if (cancelled || !data.current || !data.daily) return;
+
+      const c = data.current;
+      const d = data.daily;
+
+      setCurrent({
+        tempC: Math.round(c.temperature_2m),
+        feelsLikeC: Math.round(c.apparent_temperature),
+        humidity: Math.round(c.relative_humidity_2m),
+        windKmh: Math.round(c.wind_speed_10m),
+        condition: weatherCodeToIcon(c.weather_code),
+        soilMoisturePct: Math.round(c.relative_humidity_2m),
+        location: "Your current location",
+      });
+
+      const realForecast: ForecastDay[] = d.time.map(
+        (date: string, index: number) => ({
+          day: getDayName(date, index),
+          icon: weatherCodeToIcon(d.weather_code[index]),
+          high: Math.round(d.temperature_2m_max[index]),
+          low: Math.round(d.temperature_2m_min[index]),
+          humidity: Math.round(d.relative_humidity_2m_mean[index]),
+          windKmh: Math.round(d.wind_speed_10m_max[index]),
+          rainMm: Math.round(d.precipitation_sum[index] * 10) / 10,
+        })
+      );
+
+      setForecast(realForecast);
+      setWeatherError(false);
+    } catch (error) {
+      console.error("Weather error:", error);
+
+      if (!cancelled) {
+        setWeatherError(true);
+      }
+    } finally {
+      if (!cancelled) {
+        setWeatherLoading(false);
+      }
+    }
+  };
+
+  try {
+    const cached = sessionStorage.getItem("plantio-session-location");
+
+    if (cached) {
+      const loc = JSON.parse(cached);
+
+      if (typeof loc.lat === "number" && typeof loc.lng === "number") {
+        loadWeather(loc.lat, loc.lng);
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+  } catch {}
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        try {
+          sessionStorage.setItem(
+            "plantio-session-location",
+            JSON.stringify({
+              lat,
+              lng: lon,
+              isDefault: false,
+            })
+          );
+        } catch {}
+
+        loadWeather(lat, lon);
+      },
+      () => {
+        if (!cancelled) {
+          setWeatherError(true);
+          setWeatherLoading(false);
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 15_000,
+        maximumAge: 10 * 60 * 1000,
+      }
+    );
+  } else {
+    setWeatherError(true);
+    setWeatherLoading(false);
+  }
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+  
   return (
     <main className="flex-1 pb-[calc(env(safe-area-inset-bottom)+96px)]">
       {/* FOREST header */}
@@ -205,16 +342,7 @@ export default function WeatherPage() {
       {/* CREAM content */}
       <section className="plantio-grain px-5 py-4 bg-cream plantio-section-gap">
         <div className="mx-auto max-w-2xl space-y-4">
-          {/* ---- Sample data notice ---- */}
-          <div className="rounded-2xl border-[2.5px] border-ink bg-gold/10 p-3 flex gap-2">
-            <Info className="w-4 h-4 text-forest shrink-0 mt-0.5" strokeWidth={2.5} />
-            <p className="text-xs text-ink/80">
-              <span className="font-display text-[11px] font-bold uppercase">
-                {t("weather.sampleData")}:{" "}
-              </span>
-              {t("weather.sampleDataNote")}
-            </p>
-          </div>
+         
 
           {/* ---- Current Conditions Card ---- */}
           <StickerCard className="bg-white plantio-stripes">
@@ -226,24 +354,24 @@ export default function WeatherPage() {
                 <h2 className="font-display text-xl font-bold uppercase leading-tight">
                   {t("weather.currentConditions")}
                 </h2>
-                <p className="text-xs opacity-70">{t("weather.defaultLocation")}</p>
+                <p className="text-xs opacity-70">{locationName}</p>
               </div>
             </div>
 
             {/* Large temperature + icon */}
             <div className="flex items-center gap-4 mb-4">
               <span className="shrink-0 w-20 h-20 rounded-2xl bg-cream border-[3px] border-ink flex items-center justify-center shadow-[5px_5px_0px_0px_#161611]">
-                <WeatherIcon kind={CURRENT.condition} className="w-10 h-10 text-gold" />
+                <WeatherIcon kind={current.condition} className="w-10 h-10 text-gold" />
               </span>
               <div>
                 <p className="font-display text-5xl sm:text-6xl font-bold leading-none">
-                  {CURRENT.tempC}
+                  {current.tempC}
                   <span className="text-2xl sm:text-3xl align-top ml-0.5">
                     {t("weather.celsius")}
                   </span>
                 </p>
                 <p className="text-sm text-ink/70 mt-1">
-                  {t("weather.feelsLike")} {CURRENT.feelsLikeC}
+                  {t("weather.feelsLike")} {current.feelsLikeC}
                   {t("weather.celsius")}
                 </p>
               </div>
@@ -254,7 +382,7 @@ export default function WeatherPage() {
               {/* Humidity */}
               <div className="rounded-2xl border-[2.5px] border-ink bg-cream p-3 flex flex-col items-center gap-1.5">
                 <Droplets className="w-5 h-5 text-midgreen" strokeWidth={2.5} />
-                <p className="font-display text-lg font-bold">{CURRENT.humidity}%</p>
+                <p className="font-display text-lg font-bold">{current.humidity}%</p>
                 <p className="text-[10px] text-ink/60 uppercase font-display font-bold tracking-wide">
                   {t("weather.humidity")}
                 </p>
@@ -262,7 +390,7 @@ export default function WeatherPage() {
               {/* Wind */}
               <div className="rounded-2xl border-[2.5px] border-ink bg-cream p-3 flex flex-col items-center gap-1.5">
                 <Wind className="w-5 h-5 text-forest" strokeWidth={2.5} />
-                <p className="font-display text-lg font-bold">{CURRENT.windKmh}</p>
+                <p className="font-display text-lg font-bold">{current.windKmh}</p>
                 <p className="text-[10px] text-ink/60 uppercase font-display font-bold tracking-wide">
                   {t("weather.kmh")}
                 </p>
@@ -270,7 +398,7 @@ export default function WeatherPage() {
               {/* Feels like */}
               <div className="rounded-2xl border-[2.5px] border-ink bg-cream p-3 flex flex-col items-center gap-1.5">
                 <Thermometer className="w-5 h-5 text-warn" strokeWidth={2.5} />
-                <p className="font-display text-lg font-bold">{CURRENT.feelsLikeC}</p>
+                <p className="font-display text-lg font-bold">{current.feelsLikeC}</p>
                 <p className="text-[10px] text-ink/60 uppercase font-display font-bold tracking-wide">
                   {t("weather.feelsLike")}
                 </p>
@@ -278,20 +406,20 @@ export default function WeatherPage() {
             </div>
 
             {/* Location + time */}
-            <div className="mt-3 flex items-center gap-4 text-xs text-ink/60">
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" strokeWidth={2.5} />
-                {t("weather.defaultLocation")}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
-                {t("weather.lastUpdated")} {timeStr}
-              </span>
-            </div>
-          </StickerCard>
+<div className="mt-3 flex items-center gap-4 text-xs text-ink/60">
+  <span className="flex items-center gap-1">
+    <MapPin className="w-3.5 h-3.5" strokeWidth={2.5} />
+    {locationName}
+  </span>
+  <span className="flex items-center gap-1">
+    <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
+    {t("weather.lastUpdated")} {timeStr}
+  </span>
+</div>
+</StickerCard>
 
-          {/* ---- 5-Day Forecast ---- */}
-          <StickerCard className="bg-white plantio-card-in">
+{/* ---- 5-Day Forecast ---- */}
+<StickerCard className="bg-white plantio-card-in">
             <div className="flex items-center gap-3 mb-4">
               <span className="shrink-0 w-11 h-11 rounded-2xl bg-gold border-[3px] border-ink flex items-center justify-center shadow-[3px_3px_0px_0px_#161611]">
                 <CloudSun className="w-5 h-5 text-ink" strokeWidth={2.5} />
@@ -305,7 +433,7 @@ export default function WeatherPage() {
 
             {/* Horizontal scroll row */}
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">
-              {FORECAST.map((d, i) => (
+              {forecast.map((d, i) => (
                 <div
                   key={d.day}
                   className="snap-start shrink-0 w-[130px] rounded-2xl border-[3px] border-ink bg-cream p-3 flex flex-col items-center gap-2 shadow-[3px_3px_0px_0px_#161611]"
@@ -405,7 +533,7 @@ export default function WeatherPage() {
               </div>
             </div>
 
-            <SoilMoistureBar pct={CURRENT.soilMoisturePct} />
+            <SoilMoistureBar pct={current.soilMoisturePct} />
 
             {/* Soil moisture context markers */}
             <div className="flex justify-between text-[10px] text-ink/50 mt-1 font-display">
