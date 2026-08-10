@@ -416,9 +416,10 @@ useEffect(() => {
     {t("weather.lastUpdated")} {timeStr}
   </span>
 </div>
+</StickerCard>
 
-          {/* ---- 5-Day Forecast ---- */}
-          <StickerCard className="bg-white plantio-card-in">
+{/* ---- 5-Day Forecast ---- */}
+<StickerCard className="bg-white plantio-card-in">
             <div className="flex items-center gap-3 mb-4">
               <span className="shrink-0 w-11 h-11 rounded-2xl bg-gold border-[3px] border-ink flex items-center justify-center shadow-[3px_3px_0px_0px_#161611]">
                 <CloudSun className="w-5 h-5 text-ink" strokeWidth={2.5} />
