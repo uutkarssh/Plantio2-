@@ -533,7 +533,7 @@ useEffect(() => {
               </div>
             </div>
 
-            <SoilMoistureBar pct={CURRENT.soilMoisturePct} />
+            <SoilMoistureBar pct={current.soilMoisturePct} />
 
             {/* Soil moisture context markers */}
             <div className="flex justify-between text-[10px] text-ink/50 mt-1 font-display">
