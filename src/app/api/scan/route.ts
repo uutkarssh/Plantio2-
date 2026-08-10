@@ -26,7 +26,7 @@ const UNCERTAIN: ScanResult = {
   disease_name: null,
   disease_name_hi: null,
   confidence: 0,
-  symptoms_summary: "This photo isn't clear enough for a confident result.",
+  symptoms_summary: "The plant could not be identified confidently from this image.",
   symptoms_summary_hi: null,
   plant_description_en: null,
   plant_description_hi: null,
@@ -36,72 +36,113 @@ const SYSTEM_PROMPT = `You are Plantio, an expert plant pathologist assistant. Y
 
 Respond ONLY with a single JSON object, no prose, no markdown fences. Use exactly this schema:
 {
-  "plant_name": string | null (English/common name, e.g. "Wheat", "Rice", "Tomato"),
-  "plant_name_hi": string | null (Hindi name in Devanagari script, e.g. "गेहूँ", "धान", "टमाटर"),
-  "plant_name_local": string | null (regional/local vernacular name — could be Marathi, Telugu, Bengali, Bhojpuri, etc. depending on the crop. Use the most common Indian regional name that differs from both English and Hindi. If same as plant_name_hi, set null),
+  "plant_name": string | null,
+  "plant_name_hi": string | null,
+  "plant_name_local": string | null,
   "is_healthy": boolean,
-  "disease_name": string | null (English name of the disease),
-  "disease_name_hi": string | null (Hindi name of the disease in Devanagari script),
+  "disease_name": string | null,
+  "disease_name_hi": string | null,
   "confidence": number (0 to 1),
-  "symptoms_summary": string (1-2 short plain-language sentences in English describing symptoms or health status),
-  "symptoms_summary_hi": string | null (same summary in Hindi — Devanagari script),
-  "plant_description_en": string | null (2-3 sentence description of the plant in English — what it is, where it's commonly grown in India, and its main uses. If plant unknown, set null),
-  "plant_description_hi": string | null (same description in Hindi — Devanagari script. If plant unknown, set null)
+  "symptoms_summary": string,
+  "symptoms_summary_hi": string | null,
+  "plant_description_en": string | null,
+  "plant_description_hi": string | null
 }
 
 Rules:
-- If the plant looks healthy, set is_healthy=true, disease_name=null, disease_name_hi=null, confidence between 0.7 and 0.95.
-- If a disease is visible, name the most likely disease, set confidence honestly (0.5 to 0.95), and describe symptoms in simple language a farmer understands.
-- plant_name: The common English name of the plant.
-- plant_name_hi: Hindi name in Devanagari (e.g. "गेहूँ" for Wheat, "धान" for Rice, "मक्का" for Maize, "कपास" for Cotton, "सोयाबीन" for Soybean, "टमाटर" for Tomato, "आलू" for Potato, "गन्ना" for Sugarcane, "सरसों" for Mustard, "मूंगफली" for Groundnut, "चना" for Chickpea, "मटर" for Pea, "पपीता" for Papaya, "केला" for Banana, "आम" for Mango, "नीम" for Neem, "तुलसी" for Tulsi). If unknown, set null.
-- plant_name_local: A regional/local Indian name that farmers use, which may be in Marathi, Telugu, Tamil, Bengali, Bhojpuri, etc. For example: Wheat→"गहू" (Marathi), Rice→"भात" (Marathi), Cotton→"कपाशी" (Marathi), Tomato→"टोमॅटो" (Marathi). Pick the most widely used alternate regional name. If no distinct regional name exists, set null.
-- disease_name_hi: Hindi disease name in Devanagari (e.g. "पत्ता धब्बा रोग" for Leaf Spot, "अगेली झुलस" for Early Blight, "बैक्टीरियल मुरझाना" for Bacterial Wilt, "पाउडरी आसिता" for Powdery Mildew). If unknown, set null.
-- symptoms_summary: 1-2 short English sentences describing what's visible, in simple farmer-friendly language.
-- symptoms_summary_hi: Same content translated to Hindi in Devanagari script.
-- plant_description_en: A brief 2-3 sentence English description of this plant — what it is, its growing season in India, and its main agricultural or economic uses. This helps farmers understand the plant better.
-- plant_description_hi: The exact same description in Hindi using Devanagari script.
-- If the photo is blurry, not a plant, or you are not confident (below 0.7), set confidence below 0.7 and is_healthy=false with disease_name=null and disease_name_hi=null.
+- Judge image clarity separately from diagnostic certainty.
+- Do NOT call a clear image unclear merely because it contains multiple leaves, grass, soil, other plants, or a complex background.
+- If the main plant or leaves are clearly visible, identify the plant whenever reasonably possible.
+- If the plant can be identified but the disease cannot, return the plant name and set disease_name and disease_name_hi to null. Do not use a generic unclear-photo response.
+- Only use very low confidence when the image is genuinely blurry, severely obstructed, too dark, not a plant, or the plant cannot reasonably be identified.
+- If the plant looks healthy, set is_healthy=true and disease_name=null.
+- If a disease is visible, name the most likely disease and describe the visible symptoms in simple farmer-friendly language.
 - Never invent a disease name if uncertain. Honesty over false confidence.
-- Never invent a disease name if uncertain. Honesty over false confidence.
-- IMPORTANT: Judge photo clarity separately from diagnostic certainty. A clear photo must NOT be called "unclear" simply because the plant has a complex background, multiple leaves, grass, soil, or other plants around it.
-- If the main plant or leaves are clearly visible, identify the plant even when the disease cannot be identified confidently.
-- If the plant can be identified but disease cannot, return the plant name with confidence based on plant identification and set disease_name to null. Do not return the generic "photo isn't clear enough" response.
-- Only use confidence below 0.7 when the image itself is genuinely blurry, severely obstructed, too dark, not a plant, or the plant cannot reasonably be identified.
-- IMPORTANT: plant_description_en and plant_description_hi must ALWAYS be provided when plant_name is identified. They give the farmer useful context about the plant.`;
+- plant_name_hi must be the Hindi name in Devanagari when known.
+- plant_name_local may contain a useful Indian regional/local name when known; otherwise null.
+- symptoms_summary should be 1-2 short English sentences.
+- symptoms_summary_hi should contain the same information in Hindi when possible.
+- plant_description_en and plant_description_hi should be provided whenever plant_name is identified.`;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const image = body?.image as string | undefined;
+
     if (!image || !image.startsWith("data:image/")) {
-      return NextResponse.json({ error: "A base64 image is required." }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "INVALID_IMAGE", message: "A base64 image is required." },
+        { status: 400 }
+      );
     }
 
     let text: string;
+
     try {
       text = await runVision(
         SYSTEM_PROMPT,
-        "Analyze this plant photo and return the JSON diagnosis with plant names in English, Hindi, and local/regional language, plus bilingual descriptions.",
+        "Analyze this plant photo and return the JSON diagnosis. Identify the plant if it is reasonably visible, even if the disease cannot be determined confidently.",
         image
       );
     } catch (e) {
-      console.error("scan AI error:", e);
+      console.error("[Scan] AI backend error:", e);
+      const message = e instanceof Error ? e.message : "Unknown AI error";
+
+      let error = "AI_ERROR";
+      let status = 502;
+
+      if (message.includes("429") || message.toLowerCase().includes("rate") || message.toLowerCase().includes("quota")) {
+        error = "AI_RATE_LIMITED";
+        status = 429;
+      } else if (message.includes("503") || message.toLowerCase().includes("unavailable")) {
+        error = "AI_UNAVAILABLE";
+        status = 503;
+      } else if (message.toLowerCase().includes("timed out") || message.toLowerCase().includes("timeout")) {
+        error = "AI_TIMEOUT";
+        status = 504;
+      } else if (message.includes("403") || message.toLowerCase().includes("api key")) {
+        error = "AI_AUTH_ERROR";
+        status = 502;
+      }
+
       return NextResponse.json(
-        { error: "Couldn't reach the plant doctor. Please retry.", result: UNCERTAIN },
-        { status: 502 }
+        {
+          ok: false,
+          error,
+          message: "The AI service could not process the scan. Please try again shortly.",
+        },
+        { status }
       );
     }
 
     const jsonStr = extractJson(text);
+
     if (!jsonStr) {
-      return NextResponse.json({ result: UNCERTAIN });
+      console.error("[Scan] Gemini returned non-JSON response:", text.slice(0, 1000));
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "INVALID_AI_RESPONSE",
+          message: "The AI returned an invalid response. Please try again.",
+        },
+        { status: 502 }
+      );
     }
 
     let parsed: Partial<ScanResult>;
+
     try {
       parsed = JSON.parse(jsonStr);
-    } catch {
-      return NextResponse.json({ result: UNCERTAIN });
+    } catch (e) {
+      console.error("[Scan] JSON parse error:", e);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "INVALID_AI_RESPONSE",
+          message: "The AI returned an invalid diagnosis response. Please try again.",
+        },
+        { status: 502 }
+      );
     }
 
     const result: ScanResult = {
@@ -132,11 +173,15 @@ export async function POST(req: NextRequest) {
           : null,
     };
 
-    return NextResponse.json({ result });
+    return NextResponse.json({ ok: true, result });
   } catch (e) {
-    console.error("scan route error:", e);
+    console.error("[Scan] route error:", e);
     return NextResponse.json(
-      { error: "Something went wrong while scanning.", result: UNCERTAIN },
+      {
+        ok: false,
+        error: "SCAN_SERVER_ERROR",
+        message: "Something went wrong while scanning. Please try again.",
+      },
       { status: 500 }
     );
   }
