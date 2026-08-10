@@ -442,7 +442,7 @@ useEffect(() => {
 
             {/* Horizontal scroll row */}
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">
-              {FORECAST.map((d, i) => (
+              {forecast.map((d, i) => (
                 <div
                   key={d.day}
                   className="snap-start shrink-0 w-[130px] rounded-2xl border-[3px] border-ink bg-cream p-3 flex flex-col items-center gap-2 shadow-[3px_3px_0px_0px_#161611]"
