@@ -4,34 +4,30 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 /**
  * Browser-side Supabase Auth client.
  *
- * The previous implementation stored the complete Supabase session JSON in a
- * single cookie. Supabase access + refresh tokens can exceed the practical
- * per-cookie browser limit, so the browser could report a successful login
- * while the cookie was silently truncated/not stored. The app then redirected
- * to `/`, middleware could not validate the session, and the user appeared
- * stuck on the "Welcome back! Redirecting..." state.
- *
- * Store access and refresh tokens in separate cookies instead. The storage
- * adapter still exposes the normal Supabase session JSON to supabase-js.
+ * Supabase sessions contain both access and refresh tokens. Keeping the whole
+ * session JSON in one cookie can exceed the browser's per-cookie size limit.
+ * Store the two tokens separately and reconstruct the normal session JSON for
+ * supabase-js through its storage adapter.
  */
 
-export const AUTH_COOKIE_NAME = "plantio-auth-token"; // logical storage key
+export const AUTH_COOKIE_NAME = "plantio-auth-token"; // logical Supabase storage key
 export const AUTH_ACCESS_COOKIE_NAME = "plantio-auth-access";
 export const AUTH_REFRESH_COOKIE_NAME = "plantio-auth-refresh";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.match(
-    new RegExp("(^|;\\s*)(" + name.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&") + ")=([^;]*)")
-  );
-  return match ? decodeURIComponent(match[3]) : null;
+  const prefix = `${name}=`;
+  const item = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+  return item ? decodeURIComponent(item.slice(prefix.length)) : null;
 }
 
 function setCookie(name: string, value: string, maxAge = SESSION_MAX_AGE_SECONDS) {
   if (typeof document === "undefined") return;
-  document.cookie =
-    `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
 }
 
 function deleteCookie(name: string) {
@@ -39,17 +35,12 @@ function deleteCookie(name: string) {
   document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
 }
 
-/** Supabase JS v2 storage adapter backed by two small cookies. */
 const cookieStorage = {
   getItem(_key: string): string | null {
     const access = readCookie(AUTH_ACCESS_COOKIE_NAME);
     const refresh = readCookie(AUTH_REFRESH_COOKIE_NAME);
     if (!access || !refresh) return null;
-
-    return JSON.stringify({
-      access_token: access,
-      refresh_token: refresh,
-    });
+    return JSON.stringify({ access_token: access, refresh_token: refresh });
   },
   setItem(_key: string, value: string) {
     try {
