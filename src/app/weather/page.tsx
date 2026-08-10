@@ -370,17 +370,17 @@ useEffect(() => {
             {/* Large temperature + icon */}
             <div className="flex items-center gap-4 mb-4">
               <span className="shrink-0 w-20 h-20 rounded-2xl bg-cream border-[3px] border-ink flex items-center justify-center shadow-[5px_5px_0px_0px_#161611]">
-                <WeatherIcon kind={CURRENT.condition} className="w-10 h-10 text-gold" />
+                <WeatherIcon kind={current.condition} className="w-10 h-10 text-gold" />
               </span>
               <div>
                 <p className="font-display text-5xl sm:text-6xl font-bold leading-none">
-                  {CURRENT.tempC}
+                  {current.tempC}
                   <span className="text-2xl sm:text-3xl align-top ml-0.5">
                     {t("weather.celsius")}
                   </span>
                 </p>
                 <p className="text-sm text-ink/70 mt-1">
-                  {t("weather.feelsLike")} {CURRENT.feelsLikeC}
+                  {t("weather.feelsLike")} {current.feelsLikeC}
                   {t("weather.celsius")}
                 </p>
               </div>
@@ -391,7 +391,7 @@ useEffect(() => {
               {/* Humidity */}
               <div className="rounded-2xl border-[2.5px] border-ink bg-cream p-3 flex flex-col items-center gap-1.5">
                 <Droplets className="w-5 h-5 text-midgreen" strokeWidth={2.5} />
-                <p className="font-display text-lg font-bold">{CURRENT.humidity}%</p>
+                <p className="font-display text-lg font-bold">{current.humidity}%</p>
                 <p className="text-[10px] text-ink/60 uppercase font-display font-bold tracking-wide">
                   {t("weather.humidity")}
                 </p>
@@ -399,7 +399,7 @@ useEffect(() => {
               {/* Wind */}
               <div className="rounded-2xl border-[2.5px] border-ink bg-cream p-3 flex flex-col items-center gap-1.5">
                 <Wind className="w-5 h-5 text-forest" strokeWidth={2.5} />
-                <p className="font-display text-lg font-bold">{CURRENT.windKmh}</p>
+                <p className="font-display text-lg font-bold">{current.windKmh}</p>
                 <p className="text-[10px] text-ink/60 uppercase font-display font-bold tracking-wide">
                   {t("weather.kmh")}
                 </p>
@@ -407,7 +407,7 @@ useEffect(() => {
               {/* Feels like */}
               <div className="rounded-2xl border-[2.5px] border-ink bg-cream p-3 flex flex-col items-center gap-1.5">
                 <Thermometer className="w-5 h-5 text-warn" strokeWidth={2.5} />
-                <p className="font-display text-lg font-bold">{CURRENT.feelsLikeC}</p>
+                <p className="font-display text-lg font-bold">{current.feelsLikeC}</p>
                 <p className="text-[10px] text-ink/60 uppercase font-display font-bold tracking-wide">
                   {t("weather.feelsLike")}
                 </p>
