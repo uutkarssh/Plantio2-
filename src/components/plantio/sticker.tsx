@@ -37,17 +37,33 @@ export const StickerButton = React.forwardRef<
     md: "px-5 py-3 text-base min-h-[48px]",
     lg: "px-6 py-4 text-lg min-h-[56px]",
   };
+  const classNames = cn(
+    "sticker-pill inline-flex items-center justify-center gap-2 font-display font-bold uppercase tracking-wide cursor-pointer select-none",
+    variants[variant],
+    sizes[size],
+    className
+  );
+
+  // When StickerButton is used inside Next.js <Link>, rendering a <button>
+  // creates invalid nested interactive HTML (<a><button /></a>) and can stop
+  // navigation on mobile browsers. Non-interactive instances are therefore a
+  // styled span; instances with onClick/other button props remain real buttons.
+  const isInteractive = Boolean(
+    props.onClick ||
+    props.type ||
+    props.disabled ||
+    props.formAction ||
+    props.formMethod ||
+    props.formNoValidate ||
+    props.formTarget
+  );
+
+  if (!isInteractive) {
+    return <span className={classNames}>{children}</span>;
+  }
+
   return (
-    <button
-      ref={ref}
-      className={cn(
-        "sticker-pill inline-flex items-center justify-center gap-2 font-display font-bold uppercase tracking-wide cursor-pointer select-none",
-        variants[variant],
-        sizes[size],
-        className
-      )}
-      {...props}
-    >
+    <button ref={ref} className={classNames} {...props}>
       {children}
     </button>
   );
@@ -100,7 +116,7 @@ export function SectionHeader({
   bg?: "forest" | "midgreen" | "gold" | "cream" | "leaf";
   text?: "white" | "ink";
   icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-  iconTint?: string; // tailwind bg-* for the icon badge
+  iconTint?: string;
   className?: string;
   children?: React.ReactNode;
 }) {
@@ -112,20 +128,13 @@ export function SectionHeader({
     leaf: "bg-leaf",
   };
   const texts: Record<string, string> = { white: "text-white", ink: "text-ink" };
-  // dot pattern tint: white dots on dark bgs, ink dots on light bgs
   const dotClass = text === "white" ? "plantio-dots" : "plantio-dots-ink";
   const textureClass = text === "white" ? "plantio-crosshatch" : "plantio-stripes";
   return (
     <section className={cn("w-full px-5 pt-16 pb-7 border-b-[3px] border-ink relative overflow-hidden", bgs[bg], texts[text], className)}>
-      {/* Decorative dot pattern — subtle texture, like a field of seeds */}
       <div aria-hidden className={cn("absolute inset-0 pointer-events-none opacity-60", dotClass)} />
-      {/* Decorative crosshatch/stripes — second texture layer for depth */}
       <div aria-hidden className={cn("absolute inset-0 pointer-events-none opacity-40", textureClass)} />
-      {/* Decorative blob — adds depth without crowding the title */}
-      <div
-        aria-hidden
-        className="absolute -right-12 -top-16 w-40 h-40 rounded-full bg-black/10 blur-2xl pointer-events-none"
-      />
+      <div aria-hidden className="absolute -right-12 -top-16 w-40 h-40 rounded-full bg-black/10 blur-2xl pointer-events-none" />
       <div className="relative mx-auto max-w-2xl">
         {Icon && (
           <div className={cn("sh-icon-badge plantio-title-slide", iconTint)} style={{ animationDelay: "0ms" }}>
@@ -170,7 +179,7 @@ export function ErrorRetryCard({
         <div className="shrink-0 w-12 h-12 rounded-full bg-white border-[3px] border-ink flex items-center justify-center">
           <svg viewBox="0 0 24 24" className="w-6 h-6 text-warn" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 9v4M12 17h.01" />
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71 3L13.71 3.86a2 2 0 0 0-3.42 0z" />
           </svg>
         </div>
         <div className="flex-1">
