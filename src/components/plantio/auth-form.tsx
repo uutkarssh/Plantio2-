@@ -1,202 +1,94 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Leaf,
-  Sprout,
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  User as UserIcon,
-  Loader2,
-  AlertTriangle,
-  CheckCircle2,
-  ArrowLeft,
-  ShieldCheck,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Leaf, Mail, Lock, User, Eye, EyeOff, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabaseBrowser, isAuthConfigured } from "@/lib/auth/supabase-browser";
 
-type Mode = "login" | "signup" | "forgot";
+type Mode = "login" | "signup";
 
-interface FieldErrors {
-  name?: string;
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function friendlyAuthError(rawMessage: string): string {
-  const m = rawMessage.toLowerCase();
+function friendlyAuthError(message: string) {
+  const m = message.toLowerCase();
   if (m.includes("invalid login credentials")) return "Email or password is incorrect.";
   if (m.includes("user already registered") || m.includes("already been registered")) return "An account with this email already exists.";
-  if (m.includes("password should be at least") || m.includes("weak password")) return "Please choose a stronger password.";
-  if (m.includes("unable to validate email") || m.includes("email")) return "Please enter a valid email address.";
+  if (m.includes("password") && (m.includes("weak") || m.includes("at least"))) return "Please choose a stronger password.";
   if (m.includes("rate limit") || m.includes("too many")) return "Too many attempts. Please wait a moment and try again.";
-  if (m.includes("network") || m.includes("fetch")) return "Something went wrong. Please check your connection and try again.";
+  if (m.includes("network") || m.includes("fetch")) return "Please check your internet connection and try again.";
   return "Something went wrong. Please try again.";
-}
-
-function BrandPanel() {
-  return (
-    <div className="relative hidden lg:flex lg:flex-col lg:justify-between lg:w-1/2 bg-forest text-white overflow-hidden">
-      <div aria-hidden className="absolute inset-0 plantio-dots opacity-60" />
-      <div aria-hidden className="absolute inset-0 plantio-crosshatch opacity-40" />
-      <div aria-hidden className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-leaf/30 blur-3xl" />
-      <div aria-hidden className="absolute -left-16 bottom-0 w-80 h-80 rounded-full bg-gold/20 blur-3xl" />
-      <div className="relative p-12 lg:p-16">
-        <Link href="/" className="inline-flex items-center gap-3 group">
-          <span className="flex items-center justify-center w-12 h-12 rounded-2xl border-[3px] border-ink bg-leaf shadow-[4px_4px_0px_0px_#161611]">
-            <Leaf className="w-6 h-6 text-ink" strokeWidth={2.5} />
-          </span>
-          <span className="font-display text-3xl font-bold uppercase tracking-wide">Plantio</span>
-        </Link>
-      </div>
-      <div className="relative px-12 lg:px-16 pb-16 max-w-xl">
-        <h1 className="font-display text-5xl lg:text-6xl font-bold uppercase leading-[0.95] plantio-title-slide">Smart<br />farming,<br /><span className="text-leaf">made simpler.</span></h1>
-        <p className="mt-6 text-lg text-white/85 leading-relaxed plantio-title-slide" style={{ animationDelay: "80ms" }}>
-          AI-powered crop insights, weather forecasts, irrigation planning, mandi prices, land measurement and more — all in one pocket app for growers.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-2.5 plantio-title-slide" style={{ animationDelay: "160ms" }}>
-          {[
-            { icon: Sprout, label: "Disease Scan" },
-            { icon: Leaf, label: "Crop Insights" },
-            { icon: ShieldCheck, label: "Secure" },
-          ].map(({ icon: Icon, label }) => (
-            <span key={label} className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border-[2.5px] border-white/40 bg-white/10 backdrop-blur-sm font-display text-xs font-bold uppercase tracking-wide">
-              <Icon className="w-4 h-4" strokeWidth={2.5} />{label}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div aria-hidden className="absolute right-12 top-1/2 -translate-y-1/2 hidden xl:block">
-        <div className="relative w-64 h-64">
-          <div className="absolute inset-0 rounded-full bg-leaf/20 blur-2xl" />
-          <div className="absolute inset-4 rounded-[2rem] border-[4px] border-ink bg-cream shadow-[8px_8px_0px_0px_#161611] flex items-center justify-center plantio-pop-in">
-            <Sprout className="w-28 h-28 text-forest leaf-bob" strokeWidth={2} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ModeToggle({ mode, onChange, disabled }: { mode: "login" | "signup"; onChange: (m: "login" | "signup") => void; disabled?: boolean }) {
-  return (
-    <div role="tablist" aria-label="Authentication mode" className="grid grid-cols-2 p-1 rounded-2xl border-[2.5px] border-ink bg-cream shadow-[3px_3px_0px_0px_#161611]">
-      {(["login", "signup"] as const).map((m) => {
-        const active = mode === m;
-        return <button key={m} type="button" role="tab" aria-selected={active} disabled={disabled} onClick={() => onChange(m)} className={`h-11 rounded-xl font-display text-sm font-bold uppercase tracking-wide transition-all disabled:opacity-60 disabled:cursor-not-allowed ${active ? "bg-forest text-white shadow-[2px_2px_0px_0px_#161611]" : "bg-transparent text-ink hover:bg-ink/5"}`}>{m === "login" ? "Login" : "Create Account"}</button>;
-      })}
-    </div>
-  );
 }
 
 export function AuthForm() {
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [forgotOpen, setForgotOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [forgotEmail, setForgotEmail] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
-  const [authConfigured] = useState<boolean>(() => isAuthConfigured());
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [forgot, setForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [configured] = useState(() => isAuthConfigured());
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const { data } = await supabaseBrowser.auth.getSession();
+    supabaseBrowser.auth.getSession().then(({ data }) => {
       if (!cancelled && data.session) window.location.replace("/");
-    })();
+    });
     return () => { cancelled = true; };
-  }, [router]);
+  }, []);
 
-  useEffect(() => {
-    setErrors({});
-    setFormError(null);
-    setFormSuccess(null);
-  }, [mode]);
-
-  function validateLogin(): boolean {
-    const e: FieldErrors = {};
-    if (!email.trim()) e.email = "Please enter your email.";
-    else if (!EMAIL_RE.test(email.trim())) e.email = "Please enter a valid email address.";
-    if (!password) e.password = "Please enter your password.";
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  function clearMessages() {
+    setError("");
+    setSuccess("");
   }
 
-  function validateSignup(): boolean {
-    const e: FieldErrors = {};
-    if (!name.trim()) e.name = "Please enter your name.";
-    else if (name.trim().length < 2) e.name = "Name must be at least 2 characters.";
-    if (!email.trim()) e.email = "Please enter your email.";
-    else if (!EMAIL_RE.test(email.trim())) e.email = "Please enter a valid email address.";
-    if (!password) e.password = "Please choose a password.";
-    else if (password.length < 8) e.password = "Password must be at least 8 characters.";
-    if (!confirmPassword) e.confirmPassword = "Please confirm your password.";
-    else if (password !== confirmPassword) e.confirmPassword = "Passwords do not match.";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
-
-  function validateForgot(): boolean {
-    return Boolean(forgotEmail.trim() && EMAIL_RE.test(forgotEmail.trim()));
-  }
-
-  async function handleLogin(ev: React.FormEvent) {
-    ev.preventDefault();
-    setFormError(null);
-    setFormSuccess(null);
-    if (!validateLogin()) return;
-    if (!authConfigured) {
-      setFormError("Authentication is not configured. Please contact support.");
-      return;
-    }
+  async function login() {
+    clearMessages();
+    if (!email.trim() || !email.includes("@")) return setError("Please enter a valid email address.");
+    if (!password) return setError("Please enter your password.");
+    if (!configured) return setError("Authentication is not configured. Please check the Supabase environment variables.");
 
     setLoading(true);
     try {
-      const { error } = await supabaseBrowser.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) {
-        setFormError(friendlyAuthError(error.message));
-        setLoading(false);
+      const { data, error: authError } = await supabaseBrowser.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (authError) {
+        setError(friendlyAuthError(authError.message));
         return;
       }
-      setFormSuccess("Welcome back! Redirecting...");
-      // Full navigation guarantees the new auth cookies are sent through
-      // Next.js middleware before the protected home page is rendered.
-      window.setTimeout(() => window.location.replace("/"), 150);
-    } catch {
-      setFormError("Something went wrong. Please try again.");
+      if (!data.session) {
+        setError("Login completed but no session was returned. Please try again.");
+        return;
+      }
+      setSuccess("Welcome back! Redirecting...");
+      // Give the storage adapter a moment to write both auth cookies, then do
+      // a full navigation so Next.js middleware receives the new cookies.
+      window.setTimeout(() => window.location.replace("/"), 200);
+    } catch (e) {
+      setError("Unable to sign in right now. Please try again.");
+    } finally {
       setLoading(false);
     }
   }
 
-  async function handleSignup(ev: React.FormEvent) {
-    ev.preventDefault();
-    setFormError(null);
-    setFormSuccess(null);
-    if (!validateSignup()) return;
-    if (!authConfigured) {
-      setFormError("Authentication is not configured. Please contact support.");
-      return;
-    }
+  async function signup() {
+    clearMessages();
+    if (name.trim().length < 2) return setError("Please enter your name.");
+    if (!email.trim() || !email.includes("@")) return setError("Please enter a valid email address.");
+    if (password.length < 8) return setError("Password must be at least 8 characters.");
+    if (password !== confirm) return setError("Passwords do not match.");
+    if (!configured) return setError("Authentication is not configured. Please check the Supabase environment variables.");
 
     setLoading(true);
     try {
-      const { data, error } = await supabaseBrowser.auth.signUp({
+      const { data, error: authError } = await supabaseBrowser.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -204,50 +96,126 @@ export function AuthForm() {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-      if (error) {
-        setFormError(friendlyAuthError(error.message));
-        setLoading(false);
+      if (authError) {
+        setError(friendlyAuthError(authError.message));
         return;
       }
       if (!data.session) {
-        setFormSuccess("Account created! Check your email to confirm your address, then sign in.");
+        setSuccess("Account created! Check your email to confirm your address, then sign in.");
         setPassword("");
-        setConfirmPassword("");
+        setConfirm("");
         setMode("login");
-        setLoading(false);
         return;
       }
-      setFormSuccess("Welcome to Plantio! Redirecting...");
-      window.setTimeout(() => window.location.replace("/"), 150);
+      setSuccess("Welcome to Plantio! Redirecting...");
+      window.setTimeout(() => window.location.replace("/"), 200);
     } catch {
-      setFormError("Something went wrong. Please try again.");
+      setError("Unable to create the account right now. Please try again.");
+    } finally {
       setLoading(false);
     }
   }
 
-  async function handleForgot(ev: React.FormEvent) {
-    ev.preventDefault();
-    if (!validateForgot()) return;
-    if (!authConfigured) {
-      setFormError("Authentication is not configured. Please contact support.");
-      return;
-    }
-    setForgotLoading(true);
-    setFormError(null);
+  async function sendReset() {
+    clearMessages();
+    if (!forgotEmail.trim() || !forgotEmail.includes("@")) return setError("Please enter a valid email address.");
+    if (!configured) return setError("Authentication is not configured.");
+    setLoading(true);
     try {
-      const { error } = await supabaseBrowser.auth.resetPasswordForEmail(forgotEmail.trim(), {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+      await supabaseBrowser.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth`,
       });
-      if (error) setFormError(friendlyAuthError(error.message));
-      else setFormSuccess("Password reset email sent. Check your inbox.");
+      setSuccess("If an account exists for that email, a reset link is on its way.");
+      setForgot(false);
     } catch {
-      setFormError("Something went wrong. Please try again.");
+      setError("Unable to send the reset email. Please try again.");
     } finally {
-      setForgotLoading(false);
+      setLoading(false);
     }
   }
 
-  // The existing visual form below uses the state/handlers above.
-  // (Keep the component's existing JSX and styles intact.)
-  return null;
+  const inputClass = "w-full h-12 rounded-xl border-[2.5px] border-ink bg-white px-4 text-base text-ink outline-none shadow-[3px_3px_0px_0px_#161611] focus:shadow-[4px_4px_0px_0px_#161611] disabled:opacity-60";
+  const buttonClass = "w-full h-12 rounded-xl border-[2.5px] border-ink bg-forest text-white font-bold uppercase tracking-wide shadow-[4px_4px_0px_0px_#161611] disabled:opacity-60";
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-cream p-5">
+      <div className="w-full max-w-md">
+        <div className="mb-6 flex items-center justify-center gap-3">
+          <span className="w-12 h-12 flex items-center justify-center rounded-2xl border-[3px] border-ink bg-leaf shadow-[4px_4px_0px_0px_#161611]">
+            <Leaf className="w-6 h-6" strokeWidth={2.5} />
+          </span>
+          <span className="text-3xl font-bold uppercase tracking-wide">Plantio</span>
+        </div>
+
+        <div className="rounded-3xl border-[3px] border-ink bg-white p-6 sm:p-8 shadow-[7px_7px_0px_0px_#161611]">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-bold uppercase">{forgot ? "Reset password" : mode === "login" ? "Welcome back" : "Join Plantio"}</h1>
+            <p className="mt-2 text-sm text-ink/65">
+              {forgot ? "Enter your email and we'll send you a reset link." : mode === "login" ? "Sign in to access your Plantio tools and saved data." : "Create your free Plantio account."}
+            </p>
+          </div>
+
+          {(error || success) && (
+            <div className={`mb-5 flex items-start gap-2 rounded-xl border-[2px] border-ink p-3 text-sm ${error ? "bg-warn/10" : "bg-leaf/25"}`}>
+              {error ? <AlertTriangle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
+              <span>{error || success}</span>
+            </div>
+          )}
+
+          {forgot ? (
+            <div className="space-y-4">
+              <label className="block text-xs font-bold uppercase">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3.5 w-5 h-5 opacity-50" />
+                <input className={`${inputClass} pl-11`} type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="you@example.com" disabled={loading} />
+              </div>
+              <button className={buttonClass} disabled={loading} onClick={sendReset}>{loading ? <Loader2 className="mx-auto animate-spin" /> : "Send reset link"}</button>
+              <button className="w-full text-sm font-bold text-forest" onClick={() => { setForgot(false); clearMessages(); }}>Back to login</button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border-[2px] border-ink p-1 mb-6 bg-cream">
+                <button type="button" disabled={loading} onClick={() => { setMode("login"); clearMessages(); }} className={`h-10 rounded-xl font-bold ${mode === "login" ? "bg-forest text-white" : "text-ink"}`}>Login</button>
+                <button type="button" disabled={loading} onClick={() => { setMode("signup"); clearMessages(); }} className={`h-10 rounded-xl font-bold ${mode === "signup" ? "bg-forest text-white" : "text-ink"}`}>Sign up</button>
+              </div>
+
+              <div className="space-y-4">
+                {mode === "signup" && (
+                  <div>
+                    <label className="block mb-1.5 text-xs font-bold uppercase">Name</label>
+                    <div className="relative"><User className="absolute left-3 top-3.5 w-5 h-5 opacity-50" /><input className={`${inputClass} pl-11`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" disabled={loading} /></div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block mb-1.5 text-xs font-bold uppercase">Email</label>
+                  <div className="relative"><Mail className="absolute left-3 top-3.5 w-5 h-5 opacity-50" /><input className={`${inputClass} pl-11`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" disabled={loading} /></div>
+                </div>
+
+                <div>
+                  <label className="block mb-1.5 text-xs font-bold uppercase">Password</label>
+                  <div className="relative"><Lock className="absolute left-3 top-3.5 w-5 h-5 opacity-50" /><input className={`${inputClass} pl-11 pr-12`} type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 8 characters" : "Your password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} disabled={loading} /><button type="button" className="absolute right-2 top-2 w-8 h-8" onClick={() => setShowPassword((v) => !v)}>{showPassword ? <EyeOff className="mx-auto" /> : <Eye className="mx-auto" />}</button></div>
+                </div>
+
+                {mode === "signup" && (
+                  <div>
+                    <label className="block mb-1.5 text-xs font-bold uppercase">Confirm password</label>
+                    <div className="relative"><Lock className="absolute left-3 top-3.5 w-5 h-5 opacity-50" /><input className={`${inputClass} pl-11 pr-12`} type={showConfirm ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Re-enter password" autoComplete="new-password" disabled={loading} /><button type="button" className="absolute right-2 top-2 w-8 h-8" onClick={() => setShowConfirm((v) => !v)}>{showConfirm ? <EyeOff className="mx-auto" /> : <Eye className="mx-auto" />}</button></div>
+                  </div>
+                )}
+
+                {mode === "login" && <button type="button" className="block ml-auto text-xs font-bold uppercase text-forest" onClick={() => { setForgot(true); clearMessages(); }}>Forgot password?</button>}
+
+                <button type="button" className={buttonClass} disabled={loading} onClick={mode === "login" ? login : signup}>
+                  {loading ? <><Loader2 className="inline w-5 h-5 mr-2 animate-spin" /> {mode === "login" ? "Signing in..." : "Creating account..."}</> : mode === "login" ? "Continue" : "Create account"}
+                </button>
+              </div>
+            </>
+          )}
+
+          <p className="mt-6 text-center text-xs text-ink/50">By continuing, you agree to Plantio&apos;s <Link href="/about" className="text-forest font-bold">terms & privacy policy</Link>.</p>
+        </div>
+      </div>
+    </div>
+  );
 }
