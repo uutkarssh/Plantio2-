@@ -90,7 +90,7 @@ export function StickerBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 border-[2.5px] border-ink rounded-full px-3 py-1 text-xs font-display font-bold uppercase tracking-wide shadow-[3px_3px_0px_0px_#161611]",
+        "inline-flex shrink-0 whitespace-nowrap items-center gap-1 border-[2.5px] border-ink rounded-full px-2 py-0.5 text-[10px] sm:text-xs leading-none font-display font-bold uppercase tracking-wide shadow-[2px_2px_0px_0px_#161611]",
         variants[variant],
         className
       )}
