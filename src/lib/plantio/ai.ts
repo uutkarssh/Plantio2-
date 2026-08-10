@@ -15,7 +15,7 @@ import "server-only";
  */
 
 const TIMEOUT_MS = 15_000;
-const GEMINI_MODEL = "gemini-2.5-flash-lite";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta/models";
 
