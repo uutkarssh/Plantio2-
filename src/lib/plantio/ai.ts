@@ -1,272 +1,614 @@
 import "server-only";
 
-/* Shared server-side AI helpers — timeout + retry + strict JSON validation.
- * Used by /api/scan, /api/cure, /api/cattle, /api/calendar.
- * Provider: Google Gemini API (free tier) — https://ai.google.dev
- * Requires GEMINI_API_KEY in the environment. */
+/*
+ * Shared server-side AI helpers for Plantio.
+ *
+ * Used by:
+ * /api/scan
+ * /api/cure
+ * /api/cattle
+ * /api/calendar
+ * Ask Plantio
+ *
+ * Provider: Google Gemini API
+ * Requires GEMINI_API_KEY in Vercel Environment Variables.
+ */
 
-const TIMEOUT_MS = 12_000;
-const GEMINI_MODEL = "gemini-2.5-flash"; // gemini-2.0-flash and 2.0-flash-lite were shut down June 1, 2026 — do not use them
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const TIMEOUT_MS = 15_000;
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_BASE_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models";
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+/**
+ * Wait for a specified number of milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Add a timeout to a promise.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number
+): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("AI request timed out")), ms);
+    const timer = setTimeout(() => {
+      reject(new Error("AI request timed out"));
+    }, ms);
+
     promise.then(
-      (v) => {
+      (value) => {
         clearTimeout(timer);
-        resolve(v);
+        resolve(value);
       },
-      (e) => {
+      (error) => {
         clearTimeout(timer);
-        reject(e);
+        reject(error);
       }
     );
   });
 }
 
+/**
+ * Get Gemini API key from server environment.
+ */
 function getApiKey(): string {
   const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("GEMINI_API_KEY is not set in the environment");
+
+  if (!key) {
+    throw new Error(
+      "GEMINI_API_KEY is not set in the environment"
+    );
+  }
+
   return key;
 }
 
-/* Split a "data:image/jpeg;base64,...." string into mimeType + raw base64. */
-function parseDataUrl(dataUrl: string): { mimeType: string; data: string } {
-  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (match) return { mimeType: match[1], data: match[2] };
-  // Already raw base64 with no data-url prefix — assume JPEG.
-  return { mimeType: "image/jpeg", data: dataUrl };
+/**
+ * Split:
+ * data:image/jpeg;base64,...
+ *
+ * into MIME type + raw base64.
+ */
+function parseDataUrl(
+  dataUrl: string
+): {
+  mimeType: string;
+  data: string;
+} {
+  const match = dataUrl.match(
+    /^data:([^;]+);base64,(.+)$/
+  );
+
+  if (match) {
+    return {
+      mimeType: match[1],
+      data: match[2],
+    };
+  }
+
+  // Raw base64 fallback.
+  return {
+    mimeType: "image/jpeg",
+    data: dataUrl,
+  };
 }
 
 type GeminiResponse = {
   candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
   }>;
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+  };
 };
 
-async function callGemini(body: Record<string, unknown>): Promise<string> {
+/**
+ * Call Gemini.
+ *
+ * IMPORTANT:
+ * Retry logic lives ONLY here.
+ *
+ * This prevents:
+ *
+ * runVision
+ *   -> callGemini x3
+ *   -> runVision retry x2
+ *
+ * which could create 6 requests for one scan.
+ */
+async function callGemini(
+  body: Record<string, unknown>
+): Promise<string> {
   const maxAttempts = 3;
   let lastError: Error | null = null;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  for (
+    let attempt = 1;
+    attempt <= maxAttempts;
+    attempt++
+  ) {
     try {
-      const res = await fetch(
+      const response = await fetch(
         `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${getApiKey()}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(body),
         }
       );
 
-      if (res.ok) {
-        const json: GeminiResponse = await res.json();
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+      /*
+       * Successful response.
+       */
+      if (response.ok) {
+        const json: GeminiResponse =
+          await response.json();
+
+        const text =
+          json?.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!text) {
           console.error(
-            "[Plantio AI] Empty response:",
-            JSON.stringify(json).slice(0, 500)
+            "[Plantio AI] Gemini returned an empty response:",
+            JSON.stringify(json).slice(0, 1000)
           );
-          throw new Error("Empty AI response");
+
+          throw new Error(
+            "Gemini returned an empty response"
+          );
         }
 
         return text;
       }
 
-      const errText = await res.text().catch(() => "");
+      /*
+       * Read the actual Gemini error.
+       */
+      const errorText = await response
+        .text()
+        .catch(() => "");
+
       console.error(
-        `[Plantio AI] Gemini error attempt ${attempt}:`,
-        res.status,
-        errText.slice(0, 500)
+        `[Plantio AI] Gemini HTTP ${response.status} (attempt ${attempt}/${maxAttempts})`,
+        errorText.slice(0, 1000)
       );
 
-      // These errors can be temporary, so retry them.
-      if (res.status === 429 || res.status === 500 || res.status === 502 || res.status === 503) {
-        lastError = new Error(`Gemini temporary error ${res.status}`);
+      /*
+       * Permanent errors.
+       *
+       * Do NOT retry these.
+       */
+      if (response.status === 400) {
+        throw new Error(
+          `Gemini bad request: ${errorText.slice(0, 500)}`
+        );
+      }
 
-        if (attempt < maxAttempts) {
-          const delay = 1000 * Math.pow(2, attempt - 1);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
+      if (response.status === 401) {
+        throw new Error(
+          "Gemini API key authentication failed."
+        );
+      }
+
+      if (response.status === 403) {
+        throw new Error(
+          "Gemini API key is invalid, expired, or does not have permission."
+        );
+      }
+
+      if (response.status === 404) {
+        throw new Error(
+          `Gemini model "${GEMINI_MODEL}" was not found.`
+        );
+      }
+
+      /*
+       * Retryable errors.
+       *
+       * 429 = rate/quota limit
+       * 500 = internal server error
+       * 502 = bad gateway
+       * 503 = temporary unavailable
+       * 504 = gateway timeout
+       */
+      const retryable =
+        response.status === 429 ||
+        response.status === 500 ||
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504;
+
+      if (!retryable) {
+        throw new Error(
+          `Gemini API error ${response.status}: ${errorText.slice(
+            0,
+            500
+          )}`
+        );
+      }
+
+      lastError = new Error(
+        `Gemini temporary error ${response.status}`
+      );
+
+      /*
+       * Stop after the final attempt.
+       */
+      if (attempt >= maxAttempts) {
+        break;
+      }
+
+      /*
+       * Respect Retry-After if Gemini sends it.
+       */
+      const retryAfter =
+        response.headers.get("retry-after");
+
+      let delayMs = 0;
+
+      if (retryAfter) {
+        const seconds = Number(retryAfter);
+
+        if (Number.isFinite(seconds)) {
+          delayMs = Math.min(
+            Math.max(seconds * 1000, 1000),
+            10_000
+          );
         }
       }
 
-      // Permanent/configuration errors should not be retried.
-      if (res.status === 400) {
-        throw new Error("Bad request sent to Gemini.");
+      /*
+       * Otherwise use exponential backoff:
+       *
+       * attempt 1 -> 1.5 sec
+       * attempt 2 -> 3 sec
+       *
+       * Small random jitter prevents multiple requests
+       * from retrying at exactly the same moment.
+       */
+      if (delayMs === 0) {
+        const baseDelay =
+          1500 * Math.pow(2, attempt - 1);
+
+        const jitter = Math.floor(
+          Math.random() * 500
+        );
+
+        delayMs = Math.min(
+          baseDelay + jitter,
+          8_000
+        );
       }
 
-      if (res.status === 403) {
-        throw new Error("GEMINI_API_KEY is invalid, expired, or not permitted.");
-      }
-
-      if (res.status === 404) {
-        throw new Error(`Gemini model "${GEMINI_MODEL}" was not found.`);
-      }
-
-      throw new Error(
-        `Gemini API error ${res.status}: ${errText.slice(0, 300)}`
+      console.warn(
+        `[Plantio AI] Retrying Gemini in ${delayMs}ms...`
       );
+
+      await sleep(delayMs);
     } catch (error) {
       lastError =
-        error instanceof Error ? error : new Error("Unknown Gemini error");
+        error instanceof Error
+          ? error
+          : new Error("Unknown Gemini error");
 
-      if (attempt < maxAttempts) {
-        const delay = 1000 * Math.pow(2, attempt - 1);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue;
+      /*
+       * Don't retry known permanent configuration errors.
+       */
+      const message = lastError.message;
+
+      const permanent =
+        message.includes("GEMINI_API_KEY") ||
+        message.includes("authentication") ||
+        message.includes("not found") ||
+        message.includes("bad request");
+
+      if (permanent || attempt >= maxAttempts) {
+        break;
       }
+
+      /*
+       * Network errors / timeouts can be temporary.
+       */
+      const delayMs = Math.min(
+        1500 * Math.pow(2, attempt - 1) +
+          Math.floor(Math.random() * 500),
+        8_000
+      );
+
+      console.warn(
+        `[Plantio AI] Network/temporary error. Retrying in ${delayMs}ms...`
+      );
+
+      await sleep(delayMs);
     }
   }
 
-  throw lastError ?? new Error("Gemini API request failed");
-    }
+  throw (
+    lastError ??
+    new Error("Gemini API request failed")
+  );
+}
 
-/* Extract a JSON object from a possibly-prose model response. */
-export function extractJson(text: string): string | null {
+/**
+ * Extract a JSON object from a model response.
+ */
+export function extractJson(
+  text: string
+): string | null {
   if (!text) return null;
-  // direct parse
+
+  /*
+   * Direct JSON.
+   */
   try {
     JSON.parse(text);
     return text;
   } catch {
-    /* continue */
+    // Continue.
   }
-  // fenced ```json ... ```
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+
+  /*
+   * Markdown fenced JSON.
+   */
+  const fence = text.match(
+    /```(?:json)?\s*([\s\S]*?)```/i
+  );
+
   if (fence) {
     try {
       JSON.parse(fence[1]);
       return fence[1];
     } catch {
-      /* continue */
+      // Continue.
     }
   }
-  // first {...} block
+
+  /*
+   * Find first JSON object.
+   */
   const first = text.indexOf("{");
   const last = text.lastIndexOf("}");
+
   if (first !== -1 && last > first) {
-    const slice = text.slice(first, last + 1);
+    const slice = text.slice(
+      first,
+      last + 1
+    );
+
     try {
       JSON.parse(slice);
       return slice;
     } catch {
-      /* continue */
+      // Continue.
     }
   }
+
   return null;
 }
 
-/* Run an LLM text completion with timeout + 1 retry, return raw text. */
+/**
+ * Normal text LLM request.
+ *
+ * Used by cure, cattle, calendar and similar features.
+ */
 export async function runLlm(
   system: string,
   user: string,
-  opts: { temperature?: number; maxTokens?: number } = {}
+  opts: {
+    temperature?: number;
+    maxTokens?: number;
+  } = {}
 ): Promise<string> {
-  let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const content = await withTimeout(
-        callGemini({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: [{ role: "user", parts: [{ text: user }] }],
-          generationConfig: {
-            temperature: opts.temperature ?? 0.4,
-            maxOutputTokens: opts.maxTokens ?? 900,
+  const content = await withTimeout(
+    callGemini({
+      systemInstruction: {
+        parts: [
+          {
+            text: system,
           },
-        }),
-        TIMEOUT_MS
-      );
-      if (content) return content;
-      lastErr = new Error("Empty AI response");
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("AI call failed");
+        ],
+      },
+
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: user,
+            },
+          ],
+        },
+      ],
+
+      generationConfig: {
+        temperature:
+          opts.temperature ?? 0.4,
+
+        maxOutputTokens:
+          opts.maxTokens ?? 700,
+      },
+    }),
+    TIMEOUT_MS
+  );
+
+  return content;
 }
 
-/* Run a vision (VLM) completion with timeout + 1 retry, return raw text. */
+/**
+ * Vision request used by Plantio Scan.
+ *
+ * Only ONE callGemini retry system is used.
+ */
 export async function runVision(
   system: string,
   userPrompt: string,
   imageBase64DataUrl: string
 ): Promise<string> {
-  const { mimeType, data } = parseDataUrl(imageBase64DataUrl);
-  let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const content = await withTimeout(
-        callGemini({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: [
+  const {
+    mimeType,
+    data,
+  } = parseDataUrl(imageBase64DataUrl);
+
+  const content = await withTimeout(
+    callGemini({
+      systemInstruction: {
+        parts: [
+          {
+            text: system,
+          },
+        ],
+      },
+
+      contents: [
+        {
+          role: "user",
+
+          parts: [
             {
-              role: "user",
-              parts: [{ text: userPrompt }, { inline_data: { mime_type: mimeType, data } }],
+              text: userPrompt,
+            },
+
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data,
+              },
             },
           ],
-          generationConfig: {
-  temperature: 0.2,
-  maxOutputTokens: 900,
-  responseMimeType: "application/json",
-},
-        }),
-        TIMEOUT_MS
-      );
-      if (content) return content;
-      lastErr = new Error("Empty AI vision response");
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("AI vision call failed");
+        },
+      ],
+
+      generationConfig: {
+        temperature: 0.2,
+
+        /*
+         * Scan normally returns a compact JSON response.
+         * Lowering this reduces unnecessary token usage.
+         */
+        maxOutputTokens: 650,
+
+        responseMimeType: "application/json",
+      },
+    }),
+    TIMEOUT_MS
+  );
+
+  return content;
 }
 
-/* Run LLM and parse to a validated JSON object (with fallback). */
+/**
+ * LLM request + JSON parsing with fallback.
+ */
 export async function runLlmJson<T>(
   system: string,
   user: string,
   fallback: T,
-  opts: { temperature?: number; maxTokens?: number } = {}
+  opts: {
+    temperature?: number;
+    maxTokens?: number;
+  } = {}
 ): Promise<T> {
   try {
-    const text = await runLlm(system, user, opts);
+    const text = await runLlm(
+      system,
+      user,
+      opts
+    );
+
     const jsonStr = extractJson(text);
-    if (!jsonStr) return fallback;
+
+    if (!jsonStr) {
+      return fallback;
+    }
+
     const parsed = JSON.parse(jsonStr);
-    return { ...fallback, ...parsed } as T;
-  } catch {
+
+    return {
+      ...fallback,
+      ...parsed,
+    } as T;
+  } catch (error) {
+    console.error(
+      "[Plantio AI] LLM JSON error:",
+      error
+    );
+
     return fallback;
   }
 }
 
-/* Run a multi-turn chat completion (used by the "Ask Plantio" widget). */
+/**
+ * Multi-turn Ask Plantio chat.
+ */
 export async function runChatGemini(
-  history: Array<{ role: "user" | "model"; text: string }>,
+  history: Array<{
+    role: "user" | "model";
+    text: string;
+  }>,
   newMessage: string,
   systemInstruction: string
 ): Promise<string> {
-  let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const content = await withTimeout(
-        callGemini({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents: [
-            ...history.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
-            { role: "user", parts: [{ text: newMessage }] },
+  try {
+    const content = await withTimeout(
+      callGemini({
+        systemInstruction: {
+          parts: [
+            {
+              text: systemInstruction,
+            },
           ],
-          generationConfig: { temperature: 0.5, maxOutputTokens: 500 },
-        }),
-        TIMEOUT_MS
-      );
-      if (content) return content;
-      lastErr = new Error("Empty chat response");
-    } catch (e) {
-      lastErr = e;
-    }
+        },
+
+        contents: [
+          ...history.map((turn) => ({
+            role: turn.role,
+            parts: [
+              {
+                text: turn.text,
+              },
+            ],
+          })),
+
+          {
+            role: "user",
+            parts: [
+              {
+                text: newMessage,
+              },
+            ],
+          },
+        ],
+
+        generationConfig: {
+          temperature: 0.5,
+
+          /*
+           * Chat answers don't need huge output.
+           */
+          maxOutputTokens: 400,
+        },
+      }),
+      TIMEOUT_MS
+    );
+
+    return content;
+  } catch (error) {
+    console.error(
+      "[Plantio AI] Chat error:",
+      error
+    );
+
+    return "Plantio is having trouble answering right now — please try again in a moment.";
   }
-  return "Plantio is having trouble answering right now — try again in a moment.";
-}
+        }
