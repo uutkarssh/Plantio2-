@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/config";
@@ -38,7 +37,6 @@ export function LogoutButton({
   redirectTo?: string;
   onLoggedOut?: () => void;
 }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
