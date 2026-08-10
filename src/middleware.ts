@@ -1,40 +1,43 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE_NAME } from "@/lib/auth/supabase-browser";
-
-/**
- * Plantio authentication middleware.
- *
- * Behaviour:
- * - /auth/* is public. Authenticated users are redirected to /.
- * - Normal application pages require a Plantio Supabase session.
- * - /api/* and static Next.js/public assets are left untouched so API routes
- *   can return their own errors and assets are never redirected to /auth.
- *
- * The session is stored by the browser auth client in AUTH_COOKIE_NAME.
- * We validate it with Supabase before allowing protected pages through.
- */
+import {
+  AUTH_ACCESS_COOKIE_NAME,
+  AUTH_REFRESH_COOKIE_NAME,
+} from "@/lib/auth/supabase-browser";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
-interface StoredSession {
-  access_token: string;
-  refresh_token: string;
-  expires_at?: number;
+function getTokens(req: NextRequest) {
+  const access = req.cookies.get(AUTH_ACCESS_COOKIE_NAME)?.value;
+  const refresh = req.cookies.get(AUTH_REFRESH_COOKIE_NAME)?.value;
+  if (!access || !refresh) return null;
+  return {
+    access_token: decodeURIComponent(access),
+    refresh_token: decodeURIComponent(refresh),
+  };
 }
 
-function parseSessionCookie(raw: string | undefined): StoredSession | null {
-  if (!raw) return null;
-  try {
-    const decoded = decodeURIComponent(raw);
-    const parsed = JSON.parse(decoded);
-    if (parsed?.access_token && parsed?.refresh_token) {
-      return parsed as StoredSession;
-    }
-  } catch {
-    // Malformed cookie — treat the request as unauthenticated.
-  }
-  return null;
+function clearAuthCookies(res: NextResponse) {
+  res.cookies.delete(AUTH_ACCESS_COOKIE_NAME);
+  res.cookies.delete(AUTH_REFRESH_COOKIE_NAME);
+  return res;
+}
+
+function setAuthCookies(res: NextResponse, session: {
+  access_token: string;
+  refresh_token: string;
+}) {
+  const options = {
+    path: "/",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    sameSite: "lax" as const,
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+  };
+
+  res.cookies.set({ name: AUTH_ACCESS_COOKIE_NAME, value: session.access_token, ...options });
+  res.cookies.set({ name: AUTH_REFRESH_COOKIE_NAME, value: session.refresh_token, ...options });
+  return res;
 }
 
 function isPublicPath(pathname: string) {
@@ -52,7 +55,7 @@ function isPublicPath(pathname: string) {
   );
 }
 
-async function validateSession(stored: StoredSession) {
+async function validateSession(tokens: { access_token: string; refresh_token: string }) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return null;
@@ -65,11 +68,7 @@ async function validateSession(stored: StoredSession) {
     },
   });
 
-  const { data, error } = await supabase.auth.setSession({
-    access_token: stored.access_token,
-    refresh_token: stored.refresh_token,
-  });
-
+  const { data, error } = await supabase.auth.setSession(tokens);
   if (error || !data.session) return null;
   return data.session;
 }
@@ -77,82 +76,36 @@ async function validateSession(stored: StoredSession) {
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
-  // Public routes and static assets must never be redirected to /auth.
   if (isPublicPath(pathname)) {
-    // /auth is special: if already signed in, skip the login form.
-    if (pathname.startsWith("/auth")) {
-      const stored = parseSessionCookie(req.cookies.get(AUTH_COOKIE_NAME)?.value);
-      if (!stored) return NextResponse.next();
+    if (!pathname.startsWith("/auth")) return NextResponse.next();
 
-      const session = await validateSession(stored);
-      if (!session) {
-        const res = NextResponse.next();
-        res.cookies.delete(AUTH_COOKIE_NAME);
-        return res;
-      }
+    const tokens = getTokens(req);
+    if (!tokens) return NextResponse.next();
 
-      const res = NextResponse.redirect(new URL("/", req.url));
-      res.cookies.set({
-        name: AUTH_COOKIE_NAME,
-        value: encodeURIComponent(
-          JSON.stringify({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_at: session.expires_at,
-          })
-        ),
-        path: "/",
-        maxAge: SESSION_MAX_AGE_SECONDS,
-        sameSite: "lax",
-        httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-      });
-      return res;
-    }
+    const session = await validateSession(tokens);
+    if (!session) return clearAuthCookies(NextResponse.next());
 
-    return NextResponse.next();
+    const res = NextResponse.redirect(new URL("/", req.url));
+    return setAuthCookies(res, session);
   }
 
-  // Every normal Plantio page is protected.
-  const stored = parseSessionCookie(req.cookies.get(AUTH_COOKIE_NAME)?.value);
-  if (!stored) {
+  const tokens = getTokens(req);
+  if (!tokens) {
     const loginUrl = new URL("/auth", req.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  const session = await validateSession(stored);
+  const session = await validateSession(tokens);
   if (!session) {
     const loginUrl = new URL("/auth", req.url);
     loginUrl.searchParams.set("next", pathname);
-    const res = NextResponse.redirect(loginUrl);
-    res.cookies.delete(AUTH_COOKIE_NAME);
-    return res;
+    return clearAuthCookies(NextResponse.redirect(loginUrl));
   }
 
-  // Keep the refreshed session in the same cookie used by the browser client.
-  const res = NextResponse.next();
-  res.cookies.set({
-    name: AUTH_COOKIE_NAME,
-    value: encodeURIComponent(
-      JSON.stringify({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_at: session.expires_at,
-      })
-    ),
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
-    sameSite: "lax",
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-  });
-
-  return res;
+  return setAuthCookies(NextResponse.next(), session);
 }
 
 export const config = {
-  // Run on application routes while excluding Next internals and common
-  // static files. API routes are handled separately by their own handlers.
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
