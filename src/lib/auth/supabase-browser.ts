@@ -2,48 +2,68 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Browser-side Supabase Auth client (singleton).
+ * Browser-side Supabase Auth client.
  *
- * This is the auth-aware client used by the /auth page, the AuthForm component,
- * and the LogoutButton. It is intentionally SEPARATE from the legacy
- * `src/lib/supabase.ts` client (which uses default localStorage storage and is
- * kept untouched for backwards compatibility with any other code paths).
+ * The previous implementation stored the complete Supabase session JSON in a
+ * single cookie. Supabase access + refresh tokens can exceed the practical
+ * per-cookie browser limit, so the browser could report a successful login
+ * while the cookie was silently truncated/not stored. The app then redirected
+ * to `/`, middleware could not validate the session, and the user appeared
+ * stuck on the "Welcome back! Redirecting..." state.
  *
- * Why a cookie-based storage adapter?
- * -----------------------------------
- * Supabase JS v2 defaults to `localStorage`, which is invisible to Next.js
- * server components and middleware. By writing the session into a cookie named
- * `plantio-auth-token` we let `middleware.ts` and server components read the
- * session server-side — that is what makes the already-authenticated redirect
- * work without flashing the login form.
- *
- * The cookie is NOT httpOnly — the browser Supabase client must be able to
- * read and update it on token refresh. It does not contain the service role
- * key; only the user's own access/refresh tokens (which are already exposed
- * to the browser via the anon-key-authenticated session).
+ * Store access and refresh tokens in separate cookies instead. The storage
+ * adapter still exposes the normal Supabase session JSON to supabase-js.
  */
 
-export const AUTH_COOKIE_NAME = "plantio-auth-token";
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
+export const AUTH_COOKIE_NAME = "plantio-auth-token"; // logical storage key
+export const AUTH_ACCESS_COOKIE_NAME = "plantio-auth-access";
+export const AUTH_REFRESH_COOKIE_NAME = "plantio-auth-refresh";
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
-/** Custom cookie storage adapter — used by Supabase JS v2 `auth.storage`. */
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(
+    new RegExp("(^|;\\s*)(" + name.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&") + ")=([^;]*)")
+  );
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
+function setCookie(name: string, value: string, maxAge = SESSION_MAX_AGE_SECONDS) {
+  if (typeof document === "undefined") return;
+  document.cookie =
+    `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
+function deleteCookie(name: string) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+}
+
+/** Supabase JS v2 storage adapter backed by two small cookies. */
 const cookieStorage = {
-  getItem(key: string): string | null {
-    if (typeof document === "undefined") return null;
-    const match = document.cookie.match(
-      new RegExp("(^|;\\s*)(" + key + ")=([^;]*)")
-    );
-    return match ? decodeURIComponent(match[3]) : null;
+  getItem(_key: string): string | null {
+    const access = readCookie(AUTH_ACCESS_COOKIE_NAME);
+    const refresh = readCookie(AUTH_REFRESH_COOKIE_NAME);
+    if (!access || !refresh) return null;
+
+    return JSON.stringify({
+      access_token: access,
+      refresh_token: refresh,
+    });
   },
-  setItem(key: string, value: string) {
-    if (typeof document === "undefined") return;
-    document.cookie =
-      `${key}=${encodeURIComponent(value)}` +
-      `; path=/; max-age=${SESSION_MAX_AGE_SECONDS}; SameSite=Lax`;
+  setItem(_key: string, value: string) {
+    try {
+      const parsed = JSON.parse(value);
+      if (!parsed?.access_token || !parsed?.refresh_token) return;
+      setCookie(AUTH_ACCESS_COOKIE_NAME, parsed.access_token);
+      setCookie(AUTH_REFRESH_COOKIE_NAME, parsed.refresh_token);
+    } catch {
+      // Ignore malformed storage writes.
+    }
   },
-  removeItem(key: string) {
-    if (typeof document === "undefined") return;
-    document.cookie = `${key}=; path=/; max-age=0; SameSite=Lax`;
+  removeItem(_key: string) {
+    deleteCookie(AUTH_ACCESS_COOKIE_NAME);
+    deleteCookie(AUTH_REFRESH_COOKIE_NAME);
   },
 };
 
@@ -56,9 +76,6 @@ export function getBrowserSupabase(): SupabaseClient {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    // Soft-fail: return a client pointing at empty strings. The AuthForm will
-    // surface a friendly "Something went wrong" error rather than crash. This
-    // matches the project's existing pattern in src/lib/supabase.ts.
     console.warn(
       "[auth] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY — auth will not function until these are set."
     );
@@ -77,14 +94,8 @@ export function getBrowserSupabase(): SupabaseClient {
   return cachedClient;
 }
 
-/** Convenience export — the singleton browser Supabase client. */
 export const supabaseBrowser = getBrowserSupabase();
 
-/**
- * Returns true if the env vars needed for client-side auth are present.
- * Used by the AuthForm to show a friendly "not configured" message instead
- * of crashing.
- */
 export function isAuthConfigured(): boolean {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
