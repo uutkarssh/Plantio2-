@@ -155,9 +155,10 @@ export async function runVision(
             },
           ],
           generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 900,
-          },
+  temperature: 0.2,
+  maxOutputTokens: 900,
+  responseMimeType: "application/json",
+},
         }),
         TIMEOUT_MS
       );
