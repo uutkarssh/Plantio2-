@@ -6,7 +6,7 @@ import "server-only";
  * Requires GEMINI_API_KEY in the environment. */
 
 const TIMEOUT_MS = 12_000;
-const GEMINI_MODEL = "gemini-2.5-flash-lite"; // gemini-2.0-flash and 2.0-flash-lite were shut down June 1, 2026 — do not use them
+const GEMINI_MODEL = "gemini-2.5-flash"; // gemini-2.0-flash and 2.0-flash-lite were shut down June 1, 2026 — do not use them
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
