@@ -1,23 +1,10 @@
 import "server-only";
 
-/*
- * Shared server-side AI helpers for Plantio.
- *
- * Used by:
- * /api/scan
- * /api/cure
- * /api/cattle
- * /api/calendar
- * Ask Plantio
- *
- * Provider: Google Gemini API
- * Requires GEMINI_API_KEY in Vercel Environment Variables.
- */
+/* Shared server-side AI helpers for Plantio. */
 
 const TIMEOUT_MS = 15_000;
 const GEMINI_MODEL = "gemini-2.5-flash";
-const GEMINI_BASE_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,6 +41,7 @@ function parseDataUrl(dataUrl: string): { mimeType: string; data: string } {
 type GeminiResponse = {
   candidates?: Array<{
     content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
   }>;
   error?: { code?: number; message?: string; status?: string };
 };
@@ -75,14 +63,16 @@ async function callGemini(body: Record<string, unknown>): Promise<string> {
 
       if (response.ok) {
         const json: GeminiResponse = await response.json();
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const candidate = json?.candidates?.[0];
+        const text = candidate?.content?.parts?.[0]?.text;
 
         if (!text) {
-          console.error(
-            "[Plantio AI] Gemini returned an empty response:",
-            JSON.stringify(json).slice(0, 1500)
-          );
+          console.error("[Plantio AI] Empty Gemini response:", JSON.stringify(json).slice(0, 1500));
           throw new Error("Gemini returned an empty response");
+        }
+
+        if (candidate?.finishReason && candidate.finishReason !== "STOP") {
+          console.warn(`[Plantio AI] Gemini finishReason=${candidate.finishReason}`);
         }
 
         return text;
@@ -94,57 +84,30 @@ async function callGemini(body: Record<string, unknown>): Promise<string> {
         errorText.slice(0, 1500)
       );
 
-      if (response.status === 400) {
-        throw new Error(`Gemini bad request: ${errorText.slice(0, 700)}`);
-      }
-      if (response.status === 401) {
-        throw new Error("Gemini API key authentication failed.");
-      }
-      if (response.status === 403) {
-        throw new Error("Gemini API key is invalid, expired, or does not have permission.");
-      }
-      if (response.status === 404) {
-        throw new Error(`Gemini model "${GEMINI_MODEL}" was not found.`);
-      }
+      if (response.status === 400) throw new Error(`Gemini bad request: ${errorText.slice(0, 700)}`);
+      if (response.status === 401) throw new Error("Gemini API key authentication failed.");
+      if (response.status === 403) throw new Error("Gemini API key is invalid, expired, or does not have permission.");
+      if (response.status === 404) throw new Error(`Gemini model "${GEMINI_MODEL}" was not found.`);
 
-      const retryable =
-        response.status === 429 ||
-        response.status === 500 ||
-        response.status === 502 ||
-        response.status === 503 ||
-        response.status === 504;
-
-      if (!retryable) {
-        throw new Error(`Gemini API error ${response.status}: ${errorText.slice(0, 700)}`);
-      }
+      const retryable = [429, 500, 502, 503, 504].includes(response.status);
+      if (!retryable) throw new Error(`Gemini API error ${response.status}: ${errorText.slice(0, 700)}`);
 
       lastError = new Error(`Gemini temporary error ${response.status}`);
-
       if (attempt >= maxAttempts) break;
 
       const retryAfter = response.headers.get("retry-after");
       let delayMs = 0;
-
       if (retryAfter) {
         const seconds = Number(retryAfter);
-        if (Number.isFinite(seconds)) {
-          delayMs = Math.min(Math.max(seconds * 1000, 1000), 10_000);
-        }
+        if (Number.isFinite(seconds)) delayMs = Math.min(Math.max(seconds * 1000, 1000), 10_000);
       }
-
-      if (delayMs === 0) {
-        delayMs = Math.min(
-          1500 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500),
-          8_000
-        );
-      }
+      if (!delayMs) delayMs = Math.min(1500 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500), 8_000);
 
       console.warn(`[Plantio AI] Retrying Gemini in ${delayMs}ms...`);
       await sleep(delayMs);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("Unknown Gemini error");
       const message = lastError.message;
-
       const permanent =
         message.includes("GEMINI_API_KEY") ||
         message.includes("authentication") ||
@@ -153,11 +116,7 @@ async function callGemini(body: Record<string, unknown>): Promise<string> {
 
       if (permanent || attempt >= maxAttempts) break;
 
-      const delayMs = Math.min(
-        1500 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500),
-        8_000
-      );
-
+      const delayMs = Math.min(1500 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500), 8_000);
       console.warn(`[Plantio AI] Network/temporary error. Retrying in ${delayMs}ms...`);
       await sleep(delayMs);
     }
@@ -170,8 +129,8 @@ export function extractJson(text: string): string | null {
   if (!text) return null;
 
   try {
-    JSON.parse(text);
-    return text;
+    const parsed = JSON.parse(text);
+    return JSON.stringify(parsed);
   } catch {
     // Continue.
   }
@@ -179,17 +138,13 @@ export function extractJson(text: string): string | null {
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) {
     try {
-      JSON.parse(fence[1]);
-      return fence[1];
+      const parsed = JSON.parse(fence[1].trim());
+      return JSON.stringify(parsed);
     } catch {
       // Continue.
     }
   }
 
-  /*
-   * Robust balanced-brace extraction. This handles cases where the model
-   * surrounds valid JSON with extra text containing braces.
-   */
   const first = text.indexOf("{");
   if (first === -1) return null;
 
@@ -201,27 +156,21 @@ export function extractJson(text: string): string | null {
     const ch = text[i];
 
     if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (ch === "\\") {
-        escaped = true;
-      } else if (ch === '"') {
-        inString = false;
-      }
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
       continue;
     }
 
-    if (ch === '"') {
-      inString = true;
-    } else if (ch === "{") {
-      depth++;
-    } else if (ch === "}") {
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
       depth--;
       if (depth === 0) {
         const candidate = text.slice(first, i + 1);
         try {
-          JSON.parse(candidate);
-          return candidate;
+          const parsed = JSON.parse(candidate);
+          return JSON.stringify(parsed);
         } catch {
           return null;
         }
@@ -250,26 +199,21 @@ export async function runLlm(
   );
 }
 
-/*
- * JSON schema used by Scan.
- * Gemini 2.5 Flash supports structured output. Supplying the schema here
- * makes the model return syntactically valid JSON instead of relying only
- * on prompt instructions.
- */
+/* Gemini structured-output schema for Scan. */
 const SCAN_RESPONSE_SCHEMA = {
   type: "object",
   properties: {
-    plant_name: { type: ["string", "null"] },
-    plant_name_hi: { type: ["string", "null"] },
-    plant_name_local: { type: ["string", "null"] },
+    plant_name: { type: "string", nullable: true },
+    plant_name_hi: { type: "string", nullable: true },
+    plant_name_local: { type: "string", nullable: true },
     is_healthy: { type: "boolean" },
-    disease_name: { type: ["string", "null"] },
-    disease_name_hi: { type: ["string", "null"] },
+    disease_name: { type: "string", nullable: true },
+    disease_name_hi: { type: "string", nullable: true },
     confidence: { type: "number", minimum: 0, maximum: 1 },
     symptoms_summary: { type: "string" },
-    symptoms_summary_hi: { type: ["string", "null"] },
-    plant_description_en: { type: ["string", "null"] },
-    plant_description_hi: { type: ["string", "null"] },
+    symptoms_summary_hi: { type: "string", nullable: true },
+    plant_description_en: { type: "string", nullable: true },
+    plant_description_hi: { type: "string", nullable: true },
   },
   required: [
     "plant_name",
@@ -307,8 +251,8 @@ export async function runVision(
         },
       ],
       generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 650,
+        temperature: 0.15,
+        maxOutputTokens: 1400,
         responseMimeType: "application/json",
         responseJsonSchema: SCAN_RESPONSE_SCHEMA,
       },
@@ -345,16 +289,10 @@ export async function runChatGemini(
       callGemini({
         systemInstruction: { parts: [{ text: systemInstruction }] },
         contents: [
-          ...history.map((turn) => ({
-            role: turn.role,
-            parts: [{ text: turn.text }],
-          })),
+          ...history.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
           { role: "user", parts: [{ text: newMessage }] },
         ],
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 400,
-        },
+        generationConfig: { temperature: 0.5, maxOutputTokens: 400 },
       }),
       TIMEOUT_MS
     );
