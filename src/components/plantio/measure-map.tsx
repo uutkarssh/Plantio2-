@@ -304,9 +304,9 @@ export function MeasureMap() {
   return (
     <div className="relative w-full overflow-hidden" style={{ height: "calc(100dvh - 76px - env(safe-area-inset-bottom))" }}>
       <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} zoomControl={false} className="absolute inset-0 w-full h-full" style={{ background: "#AADAFF" }}>
-        <TileLayer url={ESRI_URL} attribution="Tiles &copy; Esri" maxZoom={19} />
-        <TileLayer url={ESRI_REF_URL} maxZoom={19} zIndex={1} />
-        <TileLayer url={ESRI_ROADS_URL} maxZoom={19} zIndex={2} />
+        <TileLayer url={ESRI_URL} attribution="Tiles &copy; Esri" maxNativeZoom={19} maxZoom={21} />
+        <TileLayer url={ESRI_REF_URL} maxNativeZoom={19} maxZoom={21} zIndex={1} />
+        <TileLayer url={ESRI_ROADS_URL} maxNativeZoom={19} maxZoom={21} zIndex={2} />
 
         {/* Real current-location marker. It is separate from measurement pins. */}
         {userLocation && (
