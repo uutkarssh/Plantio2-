@@ -1,0 +1,72 @@
+name: Build Plantio APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "HTTPS URL of the deployed Plantio web app"
+        required: true
+        default: "https://plantio2-git-main-utkarsh-maurya-s-projects.vercel.app"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install JavaScript dependencies
+        run: npm install
+
+      - name: Validate deployed app URL
+        env:
+          APP_URL: ${{ inputs.app_url }}
+        run: |
+          case "$APP_URL" in
+            https://*) ;;
+            *) echo "app_url must start with https://"; exit 1 ;;
+          esac
+
+      - name: Create Android project
+        env:
+          CAPACITOR_SERVER_URL: ${{ inputs.app_url }}
+        run: npx cap add android
+
+      - name: Sync web app into Capacitor
+        env:
+          CAPACITOR_SERVER_URL: ${{ inputs.app_url }}
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload Plantio APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantio-android-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
