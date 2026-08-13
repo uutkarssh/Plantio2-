@@ -1,0 +1,69 @@
+name: Fix Plantio about page layout
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.event.head_commit.message != 'fix: apply about page layout'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply about page fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/app/about/page.tsx')
+          s = p.read_text()
+          replacements = [
+            (
+              'className="plantio-grain flex-1 pb-[calc(env(safe-area-inset-bottom)+96px)]"',
+              'className="plantio-grain flex-1 min-w-0 max-w-full overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+96px)]"'
+            ),
+            (
+              '<section className="plantio-grain px-5 py-8">',
+              '<section className="plantio-grain min-w-0 max-w-full overflow-x-hidden px-5 py-8">'
+            ),
+            (
+              '<div className="mx-auto max-w-2xl space-y-5">',
+              '<div className="mx-auto w-full max-w-2xl min-w-0 space-y-5">'
+            ),
+            (
+              '<h2 className="font-display text-2xl font-bold uppercase">\n                {t("about.keyboardShortcuts")}\n              </h2>',
+              '<h2 className="min-w-0 max-w-full break-words font-display text-xl sm:text-2xl font-bold uppercase leading-tight">\n                {t("about.keyboardShortcuts")}\n              </h2>'
+            ),
+            (
+              '<StickerCard className="bg-white plantio-pop-in" style={{ animationDelay: "300ms" }}>',
+              '<StickerCard className="bg-white plantio-pop-in max-w-full overflow-hidden" style={{ animationDelay: "300ms" }}>'
+            ),
+            (
+              '<div key={i} className="plantio-list-item flex items-center gap-3" style={{ animationDelay: `${i * 40}ms` }}>',
+              '<div key={i} className="plantio-list-item flex min-w-0 items-center gap-3" style={{ animationDelay: `${i * 40}ms` }}>'
+            ),
+            (
+              '<span className="text-sm text-ink/85">{sc.desc}</span>',
+              '<span className="min-w-0 break-words text-sm text-ink/85">{sc.desc}</span>'
+            ),
+            (
+              'className="mt-3 inline-flex items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"',
+              'className="mt-3 inline-flex max-w-full min-w-0 items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-xs sm:text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"'
+            ),
+            (
+              '                  utkarshmaurya917027@gmail.com',
+              '                  <span className="min-w-0 break-all">utkarshmaurya917027@gmail.com</span>'
+            ),
+          ]
+          for old, new in replacements:
+              if old not in s:
+                  raise SystemExit(f'Expected text not found: {old[:100]}')
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/app/about/page.tsx .github/workflows/fix-about-layout.yml
+          git commit -m "fix: apply about page layout" || exit 0
+          git rm .github/workflows/fix-about-layout.yml
+          git commit -m "chore: remove temporary layout fixer [skip ci]" || true
+          git push
