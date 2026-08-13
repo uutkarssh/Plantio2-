@@ -477,16 +477,16 @@ export default function AboutPage() {
                 <p className="mt-2 text-sm leading-relaxed text-ink/85">
                   {t("about.contactDesc")}
                 </p>
-                <a
-                  href="mailto:utkarshmaurya917027@gmail.com"
-                  className="mt-3 inline-flex max-w-full min-w-0 items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-xs sm:text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
-                >
-                  <Mail className="w-4 h-4 text-forest" strokeWidth={2.5} />
-                  <span className="min-w-0 break-all">utkarshmaurya917027@gmail.com</span>
-                </a>
-                <p className="mt-2 text-xs text-ink/70">
-                  {t("about.demoAddress")}
-                </p>
+                <div className="mt-3 space-y-2.5">
+        <a href="mailto:utkarshmaurya917027@gmail.com" className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-2xl border-[2.5px] border-ink bg-white px-3 py-2.5 font-display text-xs sm:text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611]">
+          <Mail className="w-4 h-4 shrink-0 text-forest" strokeWidth={2.5} />
+          <span className="min-w-0 break-all">utkarshmaurya917027@gmail.com</span>
+        </a>
+        <a href="mailto:utkarshmaurya88409@gmail.com" className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-2xl border-[2.5px] border-ink bg-white px-3 py-2.5 font-display text-xs sm:text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611]">
+          <Mail className="w-4 h-4 shrink-0 text-forest" strokeWidth={2.5} />
+          <span className="min-w-0 break-all">utkarshmaurya88409@gmail.com</span>
+        </a>
+      </div>
               </div>
             </div>
           </StickerCard>

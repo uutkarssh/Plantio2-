@@ -557,19 +557,22 @@ export default function FeedbackPage() {
                 <p className="mt-1.5 text-sm text-white/85 leading-relaxed">
                   {t("feedback.reachUsDesc")}
                 </p>
-                <a
-                  href="mailto:hello@plantio.app"
-                  className="mt-3 inline-flex items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-sm font-bold uppercase text-ink shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
-                >
-                  <Mail className="w-4 h-4 text-forest" strokeWidth={2.5} />
-                  hello@plantio.app
-                </a>
-                <div className="mt-3 flex items-center gap-2">
-                  <StickerBadge variant="leaf">
-                    <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                    {t("feedback.responseTime")}
-                  </StickerBadge>
-                </div>
+                <div className="mt-3 space-y-2.5">
+        <a href="mailto:utkarshmaurya917027@gmail.com" className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-2xl border-[2.5px] border-ink bg-white px-3 py-2.5 font-display text-xs sm:text-sm font-bold uppercase text-ink shadow-[3px_3px_0px_0px_#161611]">
+          <Mail className="w-4 h-4 shrink-0 text-forest" strokeWidth={2.5} />
+          <span className="min-w-0 break-all">utkarshmaurya917027@gmail.com</span>
+        </a>
+        <a href="mailto:utkarshmaurya88409@gmail.com" className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-2xl border-[2.5px] border-ink bg-white px-3 py-2.5 font-display text-xs sm:text-sm font-bold uppercase text-ink shadow-[3px_3px_0px_0px_#161611]">
+          <Mail className="w-4 h-4 shrink-0 text-forest" strokeWidth={2.5} />
+          <span className="min-w-0 break-all">utkarshmaurya88409@gmail.com</span>
+        </a>
+      </div>
+      <div className="mt-3 w-full max-w-full">
+        <StickerBadge variant="leaf" className="flex w-full max-w-full items-center justify-center gap-1.5 px-3 py-2 text-[10px] sm:text-xs leading-tight text-center whitespace-normal">
+          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
+          <span className="min-w-0 break-words">{t("feedback.responseTime")}</span>
+        </StickerBadge>
+      </div>
               </div>
             </div>
           </StickerCard>
