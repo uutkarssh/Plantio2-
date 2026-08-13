@@ -1,0 +1,18 @@
+name: Plantio beta fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sed -i 's#title={<span className="plantio-embossed">{t("about.title")}</span>}#title={<div className="flex items-center gap-2"><span className="plantio-embossed">{t("about.title")}</span><StickerBadge variant="leaf">BETA</StickerBadge></div>}#' src/app/about/page.tsx
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/app/about/page.tsx
+          git commit -m "feat: mark Plantio as beta [skip ci]" || exit 0
+          git push
