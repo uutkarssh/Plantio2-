@@ -114,7 +114,7 @@ export default function AboutPage() {
       {/* HEADER */}
       <SectionHeader
         bg="forest"
-        title={<span className="plantio-embossed">{t("about.title")}</span>}
+        title={<div className="flex items-center gap-2"><span className="plantio-embossed">{t("about.title")}</span><StickerBadge variant="leaf">BETA</StickerBadge></div>}
         subtitle={t("about.subtitle")}
         icon={Leaf}
         iconTint="bg-leaf"
