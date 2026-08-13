@@ -95,7 +95,7 @@ function SettingsAccountAction() {
   if (pathname !== "/settings") return null;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pb-6">
+    <div className="order-2 mx-auto w-full max-w-2xl px-5 pb-6">
       <div className="rounded-2xl border-[3px] border-ink bg-white p-4 shadow-[4px_4px_0px_0px_#161611] flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="font-display text-sm font-bold uppercase text-ink">Account</p>
@@ -109,6 +109,8 @@ function SettingsAccountAction() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const isAuthRoute = useIsAuthRoute();
+  const pathname = usePathname();
+  const isSettingsRoute = pathname === "/settings";
   useServiceWorker();
 
   if (isAuthRoute) {
@@ -131,7 +133,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <HamburgerDrawer />
           <AskPlantioModal />
           <SplashGate>
-            <div className="min-h-screen flex flex-col bg-cream plantio-main">
+            <div
+              className={`min-h-screen flex flex-col bg-cream plantio-main ${
+                isSettingsRoute
+                  ? "[&>main]:contents [&>main>section]:order-1 [&>main>footer]:order-3"
+                  : ""
+              }`}
+            >
               {children}
               <SettingsAccountAction />
             </div>
