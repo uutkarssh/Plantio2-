@@ -33,11 +33,11 @@ export default function ContactPage() {
 
                 <div className="mt-4 space-y-3">
                   <a
-                    href="mailto:utkarshmaurya917@gmail.com"
+                    href="mailto:utkarshmaurya917027@gmail.com"
                     className="flex items-center gap-3 rounded-2xl border-[2.5px] border-ink bg-white px-4 py-3 font-display text-sm font-bold shadow-[3px_3px_0px_0px_#161611] break-all"
                   >
                     <Mail className="w-5 h-5 shrink-0 text-forest" strokeWidth={2.5} />
-                    utkarshmaurya917@gmail.com
+                    utkarshmaurya917027@gmail.com
                   </a>
 
                   <a

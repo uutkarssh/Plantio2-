@@ -478,11 +478,11 @@ export default function AboutPage() {
                   {t("about.contactDesc")}
                 </p>
                 <a
-                  href="mailto:hello@plantio.app"
+                  href="mailto:utkarshmaurya917027@gmail.com"
                   className="mt-3 inline-flex items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
                 >
                   <Mail className="w-4 h-4 text-forest" strokeWidth={2.5} />
-                  hello@plantio.app
+                  utkarshmaurya917027@gmail.com
                 </a>
                 <p className="mt-2 text-xs text-ink/70">
                   {t("about.demoAddress")}
