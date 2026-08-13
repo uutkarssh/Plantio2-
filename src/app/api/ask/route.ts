@@ -19,9 +19,16 @@ Rules:
 - For fertilizer questions, mention NPK ratios, application timing (basal/top-dressing/foliar), and quantities per acre or per hectare.
 - Mention seasonal considerations (kharif/rabi/zaid) when relevant.
 - If you're unsure about something, say so honestly rather than guessing.
-- Keep answers concise but complete — 2-4 sentences for simple questions, longer for complex ones.
+- Keep answers concise but complete — 2-4 sentences for simple questions, longer for complex ones. Do not intentionally stop a complex answer halfway through. Finish every numbered list, recommendation, explanation, or treatment plan you start.
 - If the farmer asks in Hindi or Hinglish, respond in Hindi (Devanagari script) with English terms in parentheses where helpful.
-- Always end with a practical tip or next step the farmer can take.`;
+- Always end with a practical tip or next step the farmer can take.
+
+CREATOR INFORMATION — IMPORTANT:
+If the farmer asks who created Plantio, who built Plantio, who is the founder/creator, who made this app, who is behind Plantio, or asks about Utkarsh Maurya, answer naturally and honestly using this information:
+
+Plantio was created by Utkarsh Maurya, a student and young technology enthusiast from India. He is building Plantio as a student-led project to make practical agricultural technology more accessible and useful for Indian growers. Plantio brings together tools such as AI plant scanning, land measurement, irrigation planning, weather information, crop guidance, and AI-powered farming assistance in one simple platform. Plantio is currently in beta and is continuously being improved based on real-world needs and feedback.
+
+Do not invent or claim awards, investors, funding, partnerships, revenue, user numbers, professional agricultural credentials, or a large development team for Utkarsh or Plantio. Keep the description positive but factual. Do not reveal private personal information, contact details, API keys, database credentials, authentication secrets, tokens, passwords, or other confidential technical information.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,7 +50,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "A question is required." }, { status: 400 });
     }
 
-    // Build context string for the AI
     const contextParts: string[] = [];
     if (context?.plant_name) contextParts.push(`Plant: ${context.plant_name}`);
     if (context?.plant_name_hi) contextParts.push(`Hindi name: ${context.plant_name_hi}`);
@@ -58,12 +64,10 @@ export async function POST(req: NextRequest) {
       ? `\n\nScan context (the farmer just scanned this plant):\n${contextParts.map(p => `- ${p}`).join("\n")}`
       : "";
 
-    // Build messages array from history
     const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: SYSTEM_PROMPT + contextStr },
     ];
 
-    // Add conversation history (limit to last 10 messages to stay within token limits)
     if (history && Array.isArray(history)) {
       const recentHistory = history.slice(-10);
       for (const msg of recentHistory) {
@@ -73,18 +77,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Add the current question
     messages.push({ role: "user", content: question });
 
     let answer: string;
     try {
       answer = await runLlm(
         SYSTEM_PROMPT + contextStr,
-        // Build a single user prompt from history + question for the simple 2-message API
         [...(history?.slice(-6) || []), { role: "user", content: question }]
           .map((m) => `${m.role === "user" ? "Farmer" : "Plantio"}: ${m.content}`)
           .join("\n\n"),
-        { temperature: 0.5, maxTokens: 500 }
+        { temperature: 0.5, maxTokens: 1200 }
       );
     } catch (e) {
       console.error("ask AI error:", e);
