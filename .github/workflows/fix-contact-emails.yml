@@ -1,0 +1,96 @@
+name: Fix Plantio contact emails
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.event.head_commit.message != 'fix: apply contact email layout [skip ci]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply contact and feedback fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          feedback = Path('src/app/feedback/page.tsx')
+          s = feedback.read_text()
+          old = '''                <a
+                  href="mailto:hello@plantio.app"
+                  className="mt-3 inline-flex items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-sm font-bold uppercase text-ink shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                >
+                  <Mail className="w-4 h-4 text-forest" strokeWidth={2.5} />
+                  hello@plantio.app
+                </a>
+                <div className="mt-3 flex items-center gap-2">
+                  <StickerBadge variant="leaf">
+                    <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    {t("feedback.responseTime")}
+                  </StickerBadge>
+                </div>'''
+          new = '''                <div className="mt-3 space-y-2.5">
+                  <a
+                    href="mailto:utkarshmaurya917027@gmail.com"
+                    className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-2xl border-[2.5px] border-ink bg-white px-3 py-2.5 font-display text-xs sm:text-sm font-bold uppercase text-ink shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  >
+                    <Mail className="w-4 h-4 shrink-0 text-forest" strokeWidth={2.5} />
+                    <span className="min-w-0 break-all">utkarshmaurya917027@gmail.com</span>
+                  </a>
+                  <a
+                    href="mailto:utkarshmaurya88409@gmail.com"
+                    className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-2xl border-[2.5px] border-ink bg-white px-3 py-2.5 font-display text-xs sm:text-sm font-bold uppercase text-ink shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  >
+                    <Mail className="w-4 h-4 shrink-0 text-forest" strokeWidth={2.5} />
+                    <span className="min-w-0 break-all">utkarshmaurya88409@gmail.com</span>
+                  </a>
+                </div>
+                <div className="mt-3 w-full max-w-full">
+                  <StickerBadge variant="leaf" className="flex w-full max-w-full items-center justify-center gap-1.5 px-3 py-2 text-[10px] sm:text-xs leading-tight text-center whitespace-normal">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
+                    <span className="min-w-0 break-words">{t("feedback.responseTime")}</span>
+                  </StickerBadge>
+                </div>'''
+          if old not in s:
+              raise SystemExit('Feedback contact block not found')
+          feedback.write_text(s.replace(old, new, 1))
+
+          about = Path('src/app/about/page.tsx')
+          s = about.read_text()
+          old = '''                <a
+                  href="mailto:utkarshmaurya917027@gmail.com"
+                  className="mt-3 inline-flex max-w-full min-w-0 items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-xs sm:text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                >
+                  <Mail className="w-4 h-4 text-forest" strokeWidth={2.5} />
+                  <span className="min-w-0 break-all">utkarshmaurya917027@gmail.com</span>
+                </a>
+                <p className="mt-2 text-xs text-ink/70">
+                  {t("about.demoAddress")}
+                </p>'''
+          new = '''                <div className="mt-3 space-y-2.5">
+                  <a
+                    href="mailto:utkarshmaurya917027@gmail.com"
+                    className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-2xl border-[2.5px] border-ink bg-white px-3 py-2.5 font-display text-xs sm:text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  >
+                    <Mail className="w-4 h-4 shrink-0 text-forest" strokeWidth={2.5} />
+                    <span className="min-w-0 break-all">utkarshmaurya917027@gmail.com</span>
+                  </a>
+                  <a
+                    href="mailto:utkarshmaurya88409@gmail.com"
+                    className="flex w-full max-w-full min-w-0 items-center gap-2 rounded-2xl border-[2.5px] border-ink bg-white px-3 py-2.5 font-display text-xs sm:text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  >
+                    <Mail className="w-4 h-4 shrink-0 text-forest" strokeWidth={2.5} />
+                    <span className="min-w-0 break-all">utkarshmaurya88409@gmail.com</span>
+                  </a>
+                </div>'''
+          if old not in s:
+              raise SystemExit('About contact block not found')
+          about.write_text(s.replace(old, new, 1))
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/app/feedback/page.tsx src/app/about/page.tsx
+          git commit -m "fix: apply contact email layout [skip ci]"
+          git push
