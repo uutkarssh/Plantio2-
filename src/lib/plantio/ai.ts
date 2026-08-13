@@ -2,7 +2,9 @@ import "server-only";
 
 /* Shared server-side AI helpers for Plantio. */
 
-const TIMEOUT_MS = 15_000;
+// Give chat requests enough time to finish a useful answer instead of
+// returning a partially generated response on slower connections.
+const TIMEOUT_MS = 28_000;
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -186,13 +188,19 @@ export async function runLlm(
   user: string,
   opts: { temperature?: number; maxTokens?: number } = {}
 ): Promise<string> {
+  // Ask Plantio previously requested only 500 output tokens, which was too
+  // small for detailed plant-care answers and caused visible mid-answer cuts.
+  // Keep a safe minimum for normal text generation while leaving callers free
+  // to request a larger budget.
+  const maxOutputTokens = Math.max(opts.maxTokens ?? 1200, 1200);
+
   return withTimeout(
     callGemini({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: {
         temperature: opts.temperature ?? 0.4,
-        maxOutputTokens: opts.maxTokens ?? 700,
+        maxOutputTokens,
       },
     }),
     TIMEOUT_MS
@@ -292,7 +300,7 @@ export async function runChatGemini(
           ...history.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
           { role: "user", parts: [{ text: newMessage }] },
         ],
-        generationConfig: { temperature: 0.5, maxOutputTokens: 400 },
+        generationConfig: { temperature: 0.5, maxOutputTokens: 1200 },
       }),
       TIMEOUT_MS
     );
