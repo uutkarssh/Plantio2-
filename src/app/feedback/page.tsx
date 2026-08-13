@@ -150,16 +150,34 @@ export default function FeedbackPage() {
     return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) return;
-    addFeedback({
-      type,
-      subject: subject.trim(),
-      message: message.trim(),
-      email: email.trim() || undefined,
-    });
-    setSubmitted(true);
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          subject: subject.trim(),
+          message: message.trim(),
+          email: email.trim() || undefined,
+        }),
+      });
+      if (!response.ok) throw new Error("Feedback save failed");
+      addFeedback({
+        type,
+        subject: subject.trim(),
+        message: message.trim(),
+        email: email.trim() || undefined,
+      });
+      setSubmitted(true);
+    } catch {
+      setErrors((prev) => ({
+        ...prev,
+        message: "Could not save your feedback. Please try again.",
+      }));
+    }
   };
 
   const resetForm = () => {
