@@ -110,7 +110,7 @@ export default function AboutPage() {
   const favCount = stats.favs;
 
   return (
-    <main className="plantio-grain flex-1 pb-[calc(env(safe-area-inset-bottom)+96px)]">
+    <main className="plantio-grain flex-1 min-w-0 max-w-full overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+96px)]">
       {/* HEADER */}
       <SectionHeader
         bg="forest"
@@ -129,8 +129,8 @@ export default function AboutPage() {
       </SectionHeader>
 
       {/* STACKED CARDS */}
-      <section className="plantio-grain px-5 py-8">
-        <div className="mx-auto max-w-2xl space-y-5">
+      <section className="plantio-grain min-w-0 max-w-full overflow-x-hidden px-5 py-8">
+        <div className="mx-auto w-full max-w-2xl min-w-0 space-y-5">
           {/* 1 — WHAT PLANTIO DOES */}
           <StickerCard className="bg-white plantio-pop-in" style={{ animationDelay: "0ms" }}>
             <div className="flex items-start gap-4">
@@ -437,12 +437,12 @@ export default function AboutPage() {
           </StickerCard>
 
           {/* 9 — KEYBOARD SHORTCUTS */}
-          <StickerCard className="bg-white plantio-pop-in" style={{ animationDelay: "300ms" }}>
+          <StickerCard className="bg-white plantio-pop-in max-w-full overflow-hidden" style={{ animationDelay: "300ms" }}>
             <div className="flex items-center gap-2 mb-4">
               <div className="shrink-0 w-10 h-10 rounded-full bg-forest border-[3px] border-ink flex items-center justify-center shadow-[3px_3px_0px_0px_#161611]">
                 <Keyboard className="w-5 h-5 text-white" strokeWidth={2.5} />
               </div>
-              <h2 className="font-display text-2xl font-bold uppercase">
+              <h2 className="min-w-0 max-w-full break-words font-display text-xl sm:text-2xl font-bold uppercase leading-tight">
                 {t("about.keyboardShortcuts")}
               </h2>
             </div>
@@ -454,11 +454,11 @@ export default function AboutPage() {
                 { key: "A", desc: t("about.shortcutAbout") },
                 { key: "H", desc: t("about.shortcutHome") },
               ].map((sc, i) => (
-                <div key={i} className="plantio-list-item flex items-center gap-3" style={{ animationDelay: `${i * 40}ms` }}>
+                <div key={i} className="plantio-list-item flex min-w-0 items-center gap-3" style={{ animationDelay: `${i * 40}ms` }}>
                   <kbd className="inline-flex items-center justify-center w-8 h-8 rounded-lg border-[2.5px] border-ink bg-cream font-display text-sm font-bold uppercase shadow-[2px_2px_0px_0px_#161611]">
                     {sc.key}
                   </kbd>
-                  <span className="text-sm text-ink/85">{sc.desc}</span>
+                  <span className="min-w-0 break-words text-sm text-ink/85">{sc.desc}</span>
                 </div>
               ))}
             </div>
@@ -479,10 +479,10 @@ export default function AboutPage() {
                 </p>
                 <a
                   href="mailto:utkarshmaurya917027@gmail.com"
-                  className="mt-3 inline-flex items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  className="mt-3 inline-flex max-w-full min-w-0 items-center gap-2 rounded-full border-[2.5px] border-ink bg-white px-4 py-2 font-display text-xs sm:text-sm font-bold uppercase shadow-[3px_3px_0px_0px_#161611] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
                 >
                   <Mail className="w-4 h-4 text-forest" strokeWidth={2.5} />
-                  utkarshmaurya917027@gmail.com
+                  <span className="min-w-0 break-all">utkarshmaurya917027@gmail.com</span>
                 </a>
                 <p className="mt-2 text-xs text-ink/70">
                   {t("about.demoAddress")}
