@@ -23,7 +23,7 @@ export function CloudScanSync() {
         for (const scan of [...scans, ...local]) byId.set(scan.id, scan);
         const merged = Array.from(byId.values())
           .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
-          .slice(0, 30);
+          .slice(0, 5);
 
         localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
         setLastScan(scans[0]);
