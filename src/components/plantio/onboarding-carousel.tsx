@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 const SLIDES = [1, 2, 3, 4] as const;
@@ -33,6 +33,25 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
 
   const previous = () => setActive((value) => Math.max(0, value - 1));
 
+  // Preload the onboarding artwork so the first transition does not expose
+  // an empty/collapsed image box while the next image is being decoded.
+  useEffect(() => {
+    SLIDES.forEach((slide) => {
+      const png = new Image();
+      png.src = slideSrc(slide, "png");
+      png.onload = () => {
+        setExtension((value) => ({ ...value, [slide]: "png" }));
+      };
+      png.onerror = () => {
+        const jpg = new Image();
+        jpg.src = slideSrc(slide, "jpg");
+        jpg.onload = () => {
+          setExtension((value) => ({ ...value, [slide]: "jpg" }));
+        };
+      };
+    });
+  }, []);
+
   const currentSlide = SLIDES[active];
   const currentExtension = extension[currentSlide] ?? "png";
 
@@ -60,12 +79,14 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
     >
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-7xl flex-col items-center justify-center">
         <div className="relative w-full overflow-hidden rounded-[28px] border-[3px] border-ink bg-white shadow-[7px_7px_0px_0px_#161611]">
-          <div className="relative flex w-full items-center justify-center bg-cream">
+          {/* Fixed stage height prevents the layout from collapsing to a thin line
+              before an image's intrinsic dimensions are available. */}
+          <div className="relative flex h-[min(70vh,720px)] min-h-[320px] w-full items-center justify-center overflow-hidden bg-cream sm:h-[min(75vh,760px)]">
             <img
               key={`${currentSlide}-${currentExtension}`}
               src={slideSrc(currentSlide, currentExtension)}
               alt={`Plantio feature ${currentSlide} of ${SLIDES.length}`}
-              className="block h-auto max-h-[calc(100vh-8.5rem)] w-full object-contain"
+              className="slide-image block h-full w-full object-contain"
               onError={() => {
                 if (currentExtension === "png") {
                   setExtension((value) => ({ ...value, [currentSlide]: "jpg" }));
@@ -126,6 +147,30 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
           )}
         </div>
       </div>
+
+      <style jsx>{`
+        .slide-image {
+          animation: plantio-slide-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: opacity, transform;
+        }
+
+        @keyframes plantio-slide-in {
+          from {
+            opacity: 0;
+            transform: scale(0.985);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .slide-image {
+            animation: none;
+          }
+        }
+      `}</style>
     </main>
   );
 }
