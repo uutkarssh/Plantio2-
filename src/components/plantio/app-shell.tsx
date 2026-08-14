@@ -12,6 +12,7 @@ import { TopBar } from "./top-bar";
 import { InstallBanner } from "./install-banner";
 import { LoadingScreen } from "./loading-screen";
 import { LogoutButton } from "./logout-button";
+import { CloudScanSync } from "./cloud-scan-sync";
 import { I18nProvider } from "@/lib/plantio/i18n";
 
 function useIsAuthRoute() {
@@ -29,8 +30,6 @@ function SplashGate({ children }: { children: React.ReactNode }) {
         setReady(true);
         return;
       }
-      // Keep the first-load branding cue short; the old 1.6s gate made the
-      // homepage feel frozen before any useful content could be interacted with.
       const t = window.setTimeout(() => {
         sessionStorage.setItem(KEY, "1");
         setReady(true);
@@ -129,6 +128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <ErrorBoundary>
       <I18nProvider>
         <FirebaseAuthGate>
+          <CloudScanSync />
           <TopBar />
           <HamburgerDrawer />
           <AskPlantioModal />
