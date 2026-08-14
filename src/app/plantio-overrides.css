@@ -1,0 +1,6 @@
+/* Small visual overrides kept separate from the main design system. */
+
+/* The Plantio in Numbers cards use static icon cards, not progress/loading indicators. */
+.plantio-progress-ring {
+  display: none !important;
+}
