@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Leaf, Mail, Lock, User, Eye, EyeOff, Loader2, AlertTriangle, CheckCircle2, Phone } from "lucide-react";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, signInWithPopup, updateProfile } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/config";
+import { OnboardingCarousel } from "@/components/plantio/onboarding-carousel";
 
 type Mode = "login" | "signup";
 
@@ -43,6 +44,7 @@ export function AuthForm() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [forgot, setForgot] = useState(false);
@@ -54,6 +56,7 @@ export function AuthForm() {
       if (user) {
         window.location.replace("/");
       } else {
+        setShowOnboarding(window.localStorage.getItem("plantio_onboarding_seen") !== "1");
         setCheckingSession(false);
       }
     });
@@ -63,6 +66,11 @@ export function AuthForm() {
   function clearMessages() {
     setError("");
     setSuccess("");
+  }
+
+  function finishOnboarding() {
+    window.localStorage.setItem("plantio_onboarding_seen", "1");
+    setShowOnboarding(false);
   }
 
   function phoneAuthDisabled() {
@@ -140,6 +148,10 @@ export function AuthForm() {
 
   if (checkingSession) {
     return <div className="min-h-screen flex items-center justify-center bg-cream"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
+
+  if (showOnboarding) {
+    return <OnboardingCarousel onGetStarted={finishOnboarding} />;
   }
 
   const inputClass = "w-full h-12 rounded-xl border-[2.5px] border-ink bg-white px-4 text-base text-ink outline-none shadow-[3px_3px_0px_0px_#161611] focus:shadow-[4px_4px_0px_0px_#161611] disabled:opacity-60";
