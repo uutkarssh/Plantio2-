@@ -64,7 +64,7 @@ export function BottomNav() {
       {/* Dot texture overlay */}
       <div className="absolute inset-0 plantio-dots pointer-events-none" />
 
-      <div className="relative mx-auto max-w-2xl grid grid-cols-5">
+      <div className="relative mx-auto max-w-2xl grid grid-cols-5 w-full">
         {NAV_ITEMS.map(({ href, labelKey, icon: Icon }, idx) => {
           const isMore = href === "__more__";
           const active = isMore
@@ -77,7 +77,7 @@ export function BottomNav() {
             <>
               <span
                 className={cn(
-                  "relative flex items-center justify-center w-10 h-10 rounded-2xl border-[2.5px] border-ink transition-colors",
+                  "relative mx-auto flex items-center justify-center w-10 h-10 rounded-2xl border-[2.5px] border-ink transition-colors",
                   active
                     ? "bg-leaf text-ink shadow-[2px_2px_0px_0px_#161611]"
                     : "bg-transparent text-white"
@@ -99,7 +99,7 @@ export function BottomNav() {
               </span>
               <span
                 className={cn(
-                  "font-display text-[10px] font-bold uppercase tracking-wide",
+                  "w-full text-center font-display text-[10px] font-bold uppercase tracking-wide leading-[1.05]",
                   active ? "text-leaf" : "text-white/85"
                 )}
               >
@@ -117,7 +117,7 @@ export function BottomNav() {
               <button
                 key={href}
                 onClick={openDrawer}
-                className="flex flex-col items-center justify-center gap-1 py-2.5 min-h-[60px] active:scale-95 transition-transform"
+                className="w-full min-w-0 flex flex-col items-center justify-center gap-1 py-2.5 min-h-[60px] active:scale-95 transition-transform"
                 aria-label={t(labelKey)}
               >
                 {content}
@@ -129,7 +129,7 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
-              className="flex flex-col items-center justify-center gap-1 py-2.5 min-h-[60px] active:scale-95 transition-transform"
+              className="w-full min-w-0 flex flex-col items-center justify-center gap-1 py-2.5 min-h-[60px] active:scale-95 transition-transform"
               aria-current={active ? "page" : undefined}
             >
               {content}
