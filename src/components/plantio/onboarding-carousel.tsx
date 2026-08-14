@@ -57,7 +57,7 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
 
   return (
     <main
-      className="min-h-screen w-full bg-cream px-3 py-3 sm:px-5 sm:py-5 lg:px-8"
+      className="min-h-screen w-full overflow-x-hidden bg-cream px-3 py-2 sm:px-5 sm:py-4 lg:px-8"
       aria-label="Plantio introduction"
       onTouchStart={(event) => {
         touchStartX.current = event.touches[0]?.clientX ?? null;
@@ -77,18 +77,15 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
         else previous();
       }}
     >
-      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-7xl flex-col items-center justify-center">
-        {/* Keep the outer card slightly narrower so its border/shadow visually
-            follows the actual artwork frame inside the 9:16 onboarding image. */}
-        <div className="relative w-[90%] max-w-6xl overflow-hidden rounded-[28px] border-[3px] border-ink bg-white shadow-[7px_7px_0px_0px_#161611]">
-          {/* Fixed stage height prevents the layout from collapsing to a thin line
-              before an image's intrinsic dimensions are available. */}
-          <div className="relative flex h-[min(70vh,720px)] min-h-[320px] w-full items-center justify-center overflow-hidden bg-cream sm:h-[min(75vh,760px)]">
+      <div className="mx-auto flex min-h-[calc(100svh-1rem)] max-w-7xl flex-col items-center justify-center">
+        {/* Keep the artwork/card proportional to the supplied 9:16 images. */}
+        <div className="relative w-[92%] sm:w-[90%] lg:w-[min(70vw,620px)]">
+          <div className="relative aspect-[9/16] w-full overflow-visible rounded-[28px] border-[3px] border-ink bg-white shadow-[7px_7px_0px_0px_#161611]">
             <img
               key={`${currentSlide}-${currentExtension}`}
               src={slideSrc(currentSlide, currentExtension)}
               alt={`Plantio feature ${currentSlide} of ${SLIDES.length}`}
-              className="slide-image block h-full w-full object-contain"
+              className="slide-image block h-full w-full rounded-[24px] object-cover"
               onError={() => {
                 if (currentExtension === "png") {
                   setExtension((value) => ({ ...value, [currentSlide]: "jpg" }));
@@ -97,12 +94,13 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
               draggable={false}
             />
 
+            {/* Arrows sit just outside the artwork instead of covering its UI/content. */}
             <button
               type="button"
               aria-label="Previous slide"
               onClick={previous}
               disabled={active === 0}
-              className="absolute left-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink shadow-[4px_4px_0px_0px_#161611] transition disabled:pointer-events-none disabled:opacity-25 sm:left-5 sm:h-14 sm:w-14"
+              className="absolute left-[-30px] top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink shadow-[4px_4px_0px_0px_#161611] transition disabled:pointer-events-none disabled:opacity-25 sm:left-[-34px] sm:h-14 sm:w-14"
             >
               <ArrowLeft className="h-6 w-6" strokeWidth={3} />
             </button>
@@ -111,14 +109,14 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
               type="button"
               aria-label={active === SLIDES.length - 1 ? "Get started" : "Next slide"}
               onClick={next}
-              className="absolute right-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink shadow-[4px_4px_0px_0px_#161611] transition hover:-translate-y-[calc(50%+1px)] sm:right-5 sm:h-14 sm:w-14"
+              className="absolute right-[-30px] top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink shadow-[4px_4px_0px_0px_#161611] transition hover:-translate-y-[calc(50%+1px)] sm:right-[-34px] sm:h-14 sm:w-14"
             >
               <ArrowRight className="h-6 w-6" strokeWidth={3} />
             </button>
           </div>
         </div>
 
-        <div className="mt-4 flex w-full items-center justify-center gap-2 sm:mt-5">
+        <div className="mt-3 flex w-full items-center justify-center gap-2 sm:mt-4">
           {SLIDES.map((slide, index) => (
             <button
               key={slide}
@@ -133,12 +131,12 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
           ))}
         </div>
 
-        <div className="mt-3 flex w-full justify-center sm:mt-4">
+        <div className="mt-2 flex w-full justify-center sm:mt-3">
           {active === SLIDES.length - 1 ? (
             <button
               type="button"
               onClick={onGetStarted}
-              className="min-h-12 rounded-2xl border-[3px] border-ink bg-leaf px-8 py-3 text-base font-black uppercase tracking-wide text-ink shadow-[5px_5px_0px_0px_#161611] sm:px-12"
+              className="min-h-11 rounded-2xl border-[3px] border-ink bg-leaf px-7 py-2.5 text-base font-black uppercase tracking-wide text-ink shadow-[5px_5px_0px_0px_#161611] sm:px-12"
             >
               Get Started <ArrowRight className="ml-2 inline h-5 w-5" strokeWidth={3} />
             </button>
