@@ -78,7 +78,9 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
       }}
     >
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-7xl flex-col items-center justify-center">
-        <div className="relative w-full overflow-hidden rounded-[28px] border-[3px] border-ink bg-white shadow-[7px_7px_0px_0px_#161611]">
+        {/* Keep the outer card slightly narrower so its border/shadow visually
+            follows the actual artwork frame inside the 9:16 onboarding image. */}
+        <div className="relative w-[90%] max-w-6xl overflow-hidden rounded-[28px] border-[3px] border-ink bg-white shadow-[7px_7px_0px_0px_#161611]">
           {/* Fixed stage height prevents the layout from collapsing to a thin line
               before an image's intrinsic dimensions are available. */}
           <div className="relative flex h-[min(70vh,720px)] min-h-[320px] w-full items-center justify-center overflow-hidden bg-cream sm:h-[min(75vh,760px)]">
