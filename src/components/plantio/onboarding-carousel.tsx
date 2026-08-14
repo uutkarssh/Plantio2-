@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 const SLIDES = [1, 2, 3, 4] as const;
@@ -32,17 +32,6 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
   };
 
   const previous = () => setActive((value) => Math.max(0, value - 1));
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft") previous();
-      if (event.key === "ArrowRight") next();
-      if (event.key === "Enter" && active === SLIDES.length - 1) onGetStarted();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [active]);
 
   const currentSlide = SLIDES[active];
   const currentExtension = extension[currentSlide] ?? "png";
@@ -101,11 +90,7 @@ export function OnboardingCarousel({ onGetStarted }: Props) {
               onClick={next}
               className="absolute right-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink shadow-[4px_4px_0px_0px_#161611] transition hover:-translate-y-[calc(50%+1px)] sm:right-5 sm:h-14 sm:w-14"
             >
-              {active === SLIDES.length - 1 ? (
-                <ArrowRight className="h-6 w-6" strokeWidth={3} />
-              ) : (
-                <ArrowRight className="h-6 w-6" strokeWidth={3} />
-              )}
+              <ArrowRight className="h-6 w-6" strokeWidth={3} />
             </button>
           </div>
         </div>
