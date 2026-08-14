@@ -6,6 +6,9 @@ import "server-only";
 // returning a partially generated response on slower connections.
 const TIMEOUT_MS = 28_000;
 const GEMINI_MODEL = "gemini-2.5-flash";
+// Scan is a lightweight, high-frequency multimodal task, so keep it on the
+// lower-cost Flash-Lite model without changing the model used by chat/LLM.
+const GEMINI_SCAN_MODEL = "gemini-2.5-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function sleep(ms: number): Promise<void> {
@@ -48,14 +51,20 @@ type GeminiResponse = {
   error?: { code?: number; message?: string; status?: string };
 };
 
-async function callGemini(body: Record<string, unknown>): Promise<string> {
-  const maxAttempts = 3;
+async function callGemini(
+  body: Record<string, unknown>,
+  model: string = GEMINI_MODEL
+): Promise<string> {
+  // Avoid rapid-fire retries when Gemini is already returning 429s. A second
+  // attempt is allowed only after a meaningful backoff, while transient 5xx
+  // errors use a shorter exponential backoff.
+  const maxAttempts = 2;
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await fetch(
-        `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${getApiKey()}`,
+        `${GEMINI_BASE_URL}/${model}:generateContent?key=${getApiKey()}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -89,21 +98,39 @@ async function callGemini(body: Record<string, unknown>): Promise<string> {
       if (response.status === 400) throw new Error(`Gemini bad request: ${errorText.slice(0, 700)}`);
       if (response.status === 401) throw new Error("Gemini API key authentication failed.");
       if (response.status === 403) throw new Error("Gemini API key is invalid, expired, or does not have permission.");
-      if (response.status === 404) throw new Error(`Gemini model "${GEMINI_MODEL}" was not found.`);
+      if (response.status === 404) throw new Error(`Gemini model "${model}" was not found.`);
 
       const retryable = [429, 500, 502, 503, 504].includes(response.status);
       if (!retryable) throw new Error(`Gemini API error ${response.status}: ${errorText.slice(0, 700)}`);
 
-      lastError = new Error(`Gemini temporary error ${response.status}`);
+      if (response.status === 429) {
+        lastError = new Error("Gemini rate limit exceeded (429 TooManyRequests). Please try again shortly.");
+      } else {
+        lastError = new Error(`Gemini temporary error ${response.status}`);
+      }
+
       if (attempt >= maxAttempts) break;
 
       const retryAfter = response.headers.get("retry-after");
       let delayMs = 0;
+
       if (retryAfter) {
         const seconds = Number(retryAfter);
-        if (Number.isFinite(seconds)) delayMs = Math.min(Math.max(seconds * 1000, 1000), 10_000);
+        if (Number.isFinite(seconds) && seconds >= 0) {
+          // Never wait longer than the route's 28s AI timeout.
+          delayMs = Math.min(Math.max(seconds * 1000, 1_000), 20_000);
+        }
       }
-      if (!delayMs) delayMs = Math.min(1500 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500), 8_000);
+
+      if (!delayMs) {
+        if (response.status === 429) {
+          // The free-tier RPM window is short, but retrying immediately just
+          // creates another 429. Give the window time to clear.
+          delayMs = 12_000 + Math.floor(Math.random() * 2_000);
+        } else {
+          delayMs = Math.min(1500 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500), 8_000);
+        }
+      }
 
       console.warn(`[Plantio AI] Retrying Gemini in ${delayMs}ms...`);
       await sleep(delayMs);
@@ -247,24 +274,27 @@ export async function runVision(
   const { mimeType, data } = parseDataUrl(imageBase64DataUrl);
 
   return withTimeout(
-    callGemini({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: userPrompt },
-            { inline_data: { mime_type: mimeType, data } },
-          ],
+    callGemini(
+      {
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: userPrompt },
+              { inline_data: { mime_type: mimeType, data } },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.15,
+          maxOutputTokens: 1400,
+          responseMimeType: "application/json",
+          responseJsonSchema: SCAN_RESPONSE_SCHEMA,
         },
-      ],
-      generationConfig: {
-        temperature: 0.15,
-        maxOutputTokens: 1400,
-        responseMimeType: "application/json",
-        responseJsonSchema: SCAN_RESPONSE_SCHEMA,
       },
-    }),
+      GEMINI_SCAN_MODEL
+    ),
     TIMEOUT_MS
   );
 }
