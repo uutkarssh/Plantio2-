@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Leaf, Mail, Lock, User, Eye, EyeOff, Loader2, AlertTriangle, CheckCircle2, Phone, ArrowLeft } from "lucide-react";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, RecaptchaVerifier, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, updateProfile, type ConfirmationResult } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, RecaptchaVerifier, sendPasswordResetEmail, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, signInWithPhoneNumber, signInWithPopup, updateProfile, type ConfirmationResult } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/config";
 
 type Mode = "login" | "signup";
@@ -19,20 +19,23 @@ function friendlyAuthError(code?: string) {
     case "auth/weak-password": return "Please choose a stronger password.";
     case "auth/too-many-requests": return "Too many attempts. Please wait a few minutes before trying again.";
     case "auth/network-request-failed": return "Please check your internet connection and try again.";
-    case "auth/popup-closed-by-user": return "Google sign-in was cancelled. Please try again.";
+    case "auth/popup-closed-by-user": return "Google sign-in was cancelled or the Google window closed before Firebase received the result.";
     case "auth/popup-blocked": return "Your browser blocked the Google sign-in window. Please allow pop-ups and try again.";
     case "auth/cancelled-popup-request": return "A Google sign-in is already in progress. Please finish it first.";
-    case "auth/unauthorized-domain": return "This website domain is not authorized for Google sign-in in Firebase.";
+    case "auth/unauthorized-domain": return "This website domain is not authorized for Google sign-in in Firebase. Add the current site domain in Firebase Authentication → Settings → Authorized domains.";
     case "auth/operation-not-supported-in-this-environment": return "Google sign-in is not supported in this browser environment.";
-    case "auth/internal-error": return "Google sign-in could not be completed. Please try again.";
+    case "auth/internal-error": return "Google sign-in could not be completed. Check the browser console for the Firebase error details.";
+    case "auth/app-not-authorized": return "This Firebase app is not authorized to use Google sign-in. Check the Firebase Google provider and OAuth configuration.";
+    case "auth/operation-not-allowed": return "Google sign-in is not enabled in Firebase Authentication.";
+    case "auth/account-exists-with-different-credential": return "This Google email already has a Plantio account using another sign-in method. Sign in with that method first, then link Google.";
+    case "auth/invalid-api-key": return "The Firebase API key is invalid. Check the Firebase web app configuration.";
+    case "auth/auth-domain-config-required": return "Firebase authDomain is missing or invalid in the web configuration.";
     case "auth/captcha-check-failed": return "reCAPTCHA verification failed. Please try again.";
-    case "auth/invalid-phone-number": return "Enter a valid phone number with country code, for example +919170271488.";
+    case "auth/invalid-phone-number": return "Enter your phone number with country code, for example +919170271488.";
     case "auth/quota-exceeded": return "SMS verification is temporarily unavailable. Please try again later.";
     case "auth/code-expired": return "That verification code has expired. Please request a new code.";
     case "auth/invalid-verification-code": return "The verification code is incorrect. Please check the SMS and try again.";
     case "auth/missing-phone-number": return "Please enter your phone number.";
-    case "auth/operation-not-allowed": return "This sign-in method is not enabled in Firebase yet.";
-    case "auth/account-exists-with-different-credential": return "An account already exists with this email using another sign-in method.";
     default: return "Something went wrong. Please try again.";
   }
 }
@@ -59,10 +62,12 @@ export function AuthForm() {
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
+    // Explicit local persistence makes the session survive the OAuth popup and
+    // the full navigation back to the Plantio homepage.
+    setPersistence(firebaseAuth, browserLocalPersistence).catch(() => undefined);
+
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
       if (user) {
-        // Firebase has confirmed and persisted the session. Only now leave /auth.
-        // This avoids racing the Firebase persistence layer with a 250ms timeout.
         window.location.replace("/");
       } else {
         setCheckingSession(false);
@@ -105,7 +110,6 @@ export function AuthForm() {
     try {
       await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
       setSuccess("Welcome back! Redirecting...");
-      // Do not manually redirect. onAuthStateChanged handles it after persistence.
     } catch (e: any) { setError(friendlyAuthError(e?.code)); }
     finally { setLoading(false); }
   }
@@ -129,16 +133,20 @@ export function AuthForm() {
     clearMessages();
     setLoading(true);
     try {
+      // Wait for persistence to be established before opening the OAuth popup.
+      await setPersistence(firebaseAuth, browserLocalPersistence);
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      // Keep popup auth for the Vercel-hosted web app. Firebase recommends popup
-      // as the practical alternative to redirect auth on non-Firebase hosting.
-      await signInWithPopup(firebaseAuth, provider);
-      // Do NOT call window.location.replace() here. The auth listener above will
-      // navigate only after Firebase has finished persisting the Google session.
-      setSuccess("Signed in with Google! Redirecting...");
+      const result = await signInWithPopup(firebaseAuth, provider);
+      if (!result?.user) throw new Error("Firebase returned no Google user.");
+      setSuccess("Google account verified. Redirecting...");
+      // onAuthStateChanged performs the actual navigation after Firebase has
+      // accepted and persisted the credential.
     } catch (e: any) {
-      setError(friendlyAuthError(e?.code));
+      const code = e?.code || "unknown";
+      const message = e?.message || "No additional Firebase message was provided.";
+      console.error("[Plantio Google Auth]", { code, message, origin: window.location.origin });
+      setError(`${friendlyAuthError(code)} [${code}]`);
     } finally { setLoading(false); }
   }
 
