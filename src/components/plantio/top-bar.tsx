@@ -1,8 +1,5 @@
 "use client";
-/* Scroll-aware top bar that holds the hamburger menu + language switcher.
- * The language switcher is intentionally hidden on the Measure Land map so it
- * cannot cover the place-search field. Language remains available from the drawer.
- */
+/* Scroll-aware top bar that holds the hamburger menu + language switcher. */
 import { useEffect, useState, useRef } from "react";
 import { Languages, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -21,6 +18,7 @@ export function TopBar({ onMenuOpen }: { onMenuOpen?: () => void }) {
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
   const isMeasurePage = pathname === "/measure";
+  const isCurePage = pathname === "/scan/cure";
 
   useEffect(() => {
     const initial = getDrawerIsOpen();
@@ -66,7 +64,7 @@ export function TopBar({ onMenuOpen }: { onMenuOpen?: () => void }) {
         visible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
-      {!isMeasurePage && (
+      {!isMeasurePage && !isCurePage && (
         <button
           onClick={cycleLang}
           aria-label={`Switch language — current: ${lang}`}
@@ -77,13 +75,15 @@ export function TopBar({ onMenuOpen }: { onMenuOpen?: () => void }) {
         </button>
       )}
 
-      <button
-        onClick={openMenu}
-        aria-label="Open menu"
-        className="pointer-events-auto w-12 h-12 rounded-2xl bg-cream/95 backdrop-blur-sm border-[3px] border-ink flex items-center justify-center shadow-[3px_3px_0px_0px_#161611] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_#161611] transition-all"
-      >
-        <Menu className="w-6 h-6 text-forest" strokeWidth={2.5} />
-      </button>
+      {!isCurePage && (
+        <button
+          onClick={openMenu}
+          aria-label="Open menu"
+          className="pointer-events-auto w-12 h-12 rounded-2xl bg-cream/95 backdrop-blur-sm border-[3px] border-ink flex items-center justify-center shadow-[3px_3px_0px_0px_#161611] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_#161611] transition-all"
+        >
+          <Menu className="w-6 h-6 text-forest" strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 }
