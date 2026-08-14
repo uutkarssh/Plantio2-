@@ -229,23 +229,26 @@ export async function runVision(
   const { mimeType, data } = parseDataUrl(imageBase64DataUrl);
 
   return withTimeout(
-    callGemini({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: userPrompt },
-            { inline_data: { mime_type: mimeType, data } },
-          ],
+    callGemini(
+      {
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: userPrompt },
+              { inline_data: { mime_type: mimeType, data } },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.15,
+          maxOutputTokens: 1400,
+          responseMimeType: "application/json",
         },
-      ],
-      generationConfig: {
-        temperature: 0.15,
-        maxOutputTokens: 1400,
-        responseMimeType: "application/json",
       },
-    }),
+      GEMINI_MODEL
+    ),
     TIMEOUT_MS
   );
 }
