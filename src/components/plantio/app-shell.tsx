@@ -20,6 +20,11 @@ function useIsAuthRoute() {
   return Boolean(pathname && pathname.startsWith("/auth"));
 }
 
+function useIsPublicRoute() {
+  const pathname = usePathname();
+  return Boolean(pathname && (pathname.startsWith("/auth") || pathname.startsWith("/terms") || pathname.startsWith("/privacy")));
+}
+
 function SplashGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
@@ -64,11 +69,11 @@ function useServiceWorker() {
 
 function FirebaseAuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAuthRoute = Boolean(pathname && pathname.startsWith("/auth"));
-  const [checking, setChecking] = useState(!isAuthRoute);
+  const isPublicRoute = Boolean(pathname && (pathname.startsWith("/auth") || pathname.startsWith("/terms") || pathname.startsWith("/privacy")));
+  const [checking, setChecking] = useState(!isPublicRoute);
 
   useEffect(() => {
-    if (isAuthRoute) {
+    if (isPublicRoute) {
       setChecking(false);
       return;
     }
@@ -83,7 +88,7 @@ function FirebaseAuthGate({ children }: { children: React.ReactNode }) {
     });
 
     return unsubscribe;
-  }, [isAuthRoute]);
+  }, [isPublicRoute]);
 
   if (checking) return <LoadingScreen />;
   return <>{children}</>;
@@ -108,11 +113,12 @@ function SettingsAccountAction() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const isAuthRoute = useIsAuthRoute();
+  const isPublicRoute = useIsPublicRoute();
   const pathname = usePathname();
   const isSettingsRoute = pathname === "/settings";
   useServiceWorker();
 
-  if (isAuthRoute) {
+  if (isPublicRoute) {
     return (
       <ErrorBoundary>
         <I18nProvider>
