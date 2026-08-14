@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bakbak_One, Poppins, Hind } from "next/font/google";
 import "./globals.css";
+import "./plantio-overrides.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AppShell } from "@/components/plantio/app-shell";
 
