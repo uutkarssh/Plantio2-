@@ -56,9 +56,11 @@ export function TopBar({ onMenuOpen }: { onMenuOpen?: () => void }) {
 
   if (drawerOpen) return null;
 
+  const alignment = isMeasurePage || isCurePage ? "justify-end" : "justify-between";
+
   return (
     <div
-      className={`fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between px-4 py-3 transition-transform duration-300 ease-in-out pointer-events-none ${
+      className={`fixed top-0 left-0 right-0 z-[9999] flex items-center ${alignment} px-4 py-3 transition-transform duration-300 ease-in-out pointer-events-none ${
         visible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
