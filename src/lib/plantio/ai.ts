@@ -6,9 +6,6 @@ import "server-only";
 // returning a partially generated response on slower connections.
 const TIMEOUT_MS = 28_000;
 const GEMINI_MODEL = "gemini-2.5-flash";
-// Scan is a lightweight, high-frequency multimodal task, so keep it on the
-// lower-cost Flash-Lite model without changing the model used by chat/LLM.
-const GEMINI_SCAN_MODEL = "gemini-2.5-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function sleep(ms: number): Promise<void> {
@@ -55,10 +52,7 @@ async function callGemini(
   body: Record<string, unknown>,
   model: string = GEMINI_MODEL
 ): Promise<string> {
-  // Avoid rapid-fire retries when Gemini is already returning 429s. A second
-  // attempt is allowed only after a meaningful backoff, while transient 5xx
-  // errors use a shorter exponential backoff.
-  const maxAttempts = 2;
+  const maxAttempts = 3;
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -117,15 +111,12 @@ async function callGemini(
       if (retryAfter) {
         const seconds = Number(retryAfter);
         if (Number.isFinite(seconds) && seconds >= 0) {
-          // Never wait longer than the route's 28s AI timeout.
           delayMs = Math.min(Math.max(seconds * 1000, 1_000), 20_000);
         }
       }
 
       if (!delayMs) {
         if (response.status === 429) {
-          // The free-tier RPM window is short, but retrying immediately just
-          // creates another 429. Give the window time to clear.
           delayMs = 12_000 + Math.floor(Math.random() * 2_000);
         } else {
           delayMs = Math.min(1500 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500), 8_000);
@@ -215,10 +206,6 @@ export async function runLlm(
   user: string,
   opts: { temperature?: number; maxTokens?: number } = {}
 ): Promise<string> {
-  // Ask Plantio previously requested only 500 output tokens, which was too
-  // small for detailed plant-care answers and caused visible mid-answer cuts.
-  // Keep a safe minimum for normal text generation while leaving callers free
-  // to request a larger budget.
   const maxOutputTokens = Math.max(opts.maxTokens ?? 1200, 1200);
 
   return withTimeout(
@@ -234,38 +221,6 @@ export async function runLlm(
   );
 }
 
-/* Gemini structured-output schema for Scan. */
-const SCAN_RESPONSE_SCHEMA = {
-  type: "object",
-  properties: {
-    plant_name: { type: "string", nullable: true },
-    plant_name_hi: { type: "string", nullable: true },
-    plant_name_local: { type: "string", nullable: true },
-    is_healthy: { type: "boolean" },
-    disease_name: { type: "string", nullable: true },
-    disease_name_hi: { type: "string", nullable: true },
-    confidence: { type: "number", minimum: 0, maximum: 1 },
-    symptoms_summary: { type: "string" },
-    symptoms_summary_hi: { type: "string", nullable: true },
-    plant_description_en: { type: "string", nullable: true },
-    plant_description_hi: { type: "string", nullable: true },
-  },
-  required: [
-    "plant_name",
-    "plant_name_hi",
-    "plant_name_local",
-    "is_healthy",
-    "disease_name",
-    "disease_name_hi",
-    "confidence",
-    "symptoms_summary",
-    "symptoms_summary_hi",
-    "plant_description_en",
-    "plant_description_hi",
-  ],
-  additionalProperties: false,
-};
-
 export async function runVision(
   system: string,
   userPrompt: string,
@@ -274,27 +229,23 @@ export async function runVision(
   const { mimeType, data } = parseDataUrl(imageBase64DataUrl);
 
   return withTimeout(
-    callGemini(
-      {
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: userPrompt },
-              { inline_data: { mime_type: mimeType, data } },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.15,
-          maxOutputTokens: 1400,
-          responseMimeType: "application/json",
-          responseJsonSchema: SCAN_RESPONSE_SCHEMA,
+    callGemini({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: userPrompt },
+            { inline_data: { mime_type: mimeType, data } },
+          ],
         },
+      ],
+      generationConfig: {
+        temperature: 0.15,
+        maxOutputTokens: 1400,
+        responseMimeType: "application/json",
       },
-      GEMINI_SCAN_MODEL
-    ),
+    }),
     TIMEOUT_MS
   );
 }
