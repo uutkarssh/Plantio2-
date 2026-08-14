@@ -85,8 +85,11 @@ async function getFirebaseUid(req: NextRequest): Promise<string | null> {
   return data?.users?.[0]?.localId || null;
 }
 
-async function saveScanToSupabase(uid: string, result: ScanResult, imageDataUrl: string) {
+async function saveScanToSupabase(req: NextRequest, result: ScanResult, imageDataUrl: string) {
   try {
+    const uid = await getFirebaseUid(req);
+    if (!uid) return;
+
     const { error } = await supabaseServer.from("scan_history").insert({
       userId: uid,
       plant_name: result.plant_name,
@@ -104,20 +107,13 @@ async function saveScanToSupabase(uid: string, result: ScanResult, imageDataUrl:
     });
     if (error) console.error("[Scan] Supabase save failed:", error);
   } catch (error) {
+    // A database outage must not make an otherwise successful AI scan fail.
     console.error("[Scan] Supabase persistence error:", error);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const uid = await getFirebaseUid(req);
-    if (!uid) {
-      return NextResponse.json(
-        { ok: false, error: "UNAUTHENTICATED", message: "Please sign in to scan and save your plant history." },
-        { status: 401 }
-      );
-    }
-
     const body = await req.json();
     const image = body?.image as string | undefined;
 
@@ -194,7 +190,9 @@ export async function POST(req: NextRequest) {
       plant_description_hi: typeof parsed.plant_description_hi === "string" && parsed.plant_description_hi.trim() ? parsed.plant_description_hi : null,
     };
 
-    await saveScanToSupabase(uid, result, image);
+    // Persist every successful scan for the authenticated Firebase user.
+    // The compact thumbnail is stored in the existing image_url text column.
+    await saveScanToSupabase(req, result, image);
 
     return NextResponse.json({ ok: true, result });
   } catch (e) {
