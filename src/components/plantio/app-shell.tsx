@@ -23,11 +23,22 @@ function SplashGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // The supplied reference animation is approximately 4 seconds long.
-    // Deliberately do NOT use sessionStorage: the same branded animation must
-    // play again whenever the app is refreshed, for both new and returning users.
-    const t = window.setTimeout(() => setReady(true), 4100);
-    return () => window.clearTimeout(t);
+    const KEY = "plantio-splash-seen";
+    try {
+      if (sessionStorage.getItem(KEY)) {
+        setReady(true);
+        return;
+      }
+      // Keep the first-load branding cue short; the old 1.6s gate made the
+      // homepage feel frozen before any useful content could be interacted with.
+      const t = window.setTimeout(() => {
+        sessionStorage.setItem(KEY, "1");
+        setReady(true);
+      }, 350);
+      return () => window.clearTimeout(t);
+    } catch {
+      setReady(true);
+    }
   }, []);
 
   if (!ready) return <LoadingScreen />;
@@ -106,11 +117,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <ErrorBoundary>
         <I18nProvider>
-          <SplashGate>
-            <FirebaseAuthGate>
-              <div className="min-h-screen bg-cream">{children}</div>
-            </FirebaseAuthGate>
-          </SplashGate>
+          <FirebaseAuthGate>
+            <div className="min-h-screen bg-cream">{children}</div>
+          </FirebaseAuthGate>
         </I18nProvider>
       </ErrorBoundary>
     );
@@ -119,11 +128,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary>
       <I18nProvider>
-        <SplashGate>
-          <FirebaseAuthGate>
-            <TopBar />
-            <HamburgerDrawer />
-            <AskPlantioModal />
+        <FirebaseAuthGate>
+          <TopBar />
+          <HamburgerDrawer />
+          <AskPlantioModal />
+          <SplashGate>
             <div
               className={`min-h-screen flex flex-col bg-cream plantio-main ${
                 isSettingsRoute
@@ -136,8 +145,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <BottomNav />
             <InstallBanner />
-          </FirebaseAuthGate>
-        </SplashGate>
+          </SplashGate>
+        </FirebaseAuthGate>
       </I18nProvider>
     </ErrorBoundary>
   );
