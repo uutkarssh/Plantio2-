@@ -222,9 +222,9 @@ export function AuthForm() {
 
           <div className="mt-6 text-center text-xs text-ink/55 leading-5">
             <span>By continuing, you agree to Plantio&apos;s </span>
-            <Link href="/about" className="text-forest font-bold underline underline-offset-2">Terms &amp; Conditions</Link>
+            <Link href="/terms" className="text-forest font-bold underline underline-offset-2">Terms &amp; Conditions</Link>
             <span> and </span>
-            <Link href="/about" className="text-forest font-bold underline underline-offset-2">Privacy Policy</Link>
+            <Link href="/privacy" className="text-forest font-bold underline underline-offset-2">Privacy Policy</Link>
             <span>.</span>
           </div>
         </div>
