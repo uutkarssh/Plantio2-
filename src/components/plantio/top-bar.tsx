@@ -58,9 +58,7 @@ export function TopBar({ onMenuOpen }: { onMenuOpen?: () => void }) {
 
   return (
     <div
-      className={`fixed top-0 left-0 right-0 z-[9999] flex items-center ${
-        isMeasurePage ? "justify-end" : "justify-between"
-      } px-4 py-3 transition-transform duration-300 ease-in-out pointer-events-none ${
+      className={`fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between px-4 py-3 transition-transform duration-300 ease-in-out pointer-events-none ${
         visible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
@@ -75,15 +73,13 @@ export function TopBar({ onMenuOpen }: { onMenuOpen?: () => void }) {
         </button>
       )}
 
-      {!isCurePage && (
-        <button
-          onClick={openMenu}
-          aria-label="Open menu"
-          className="pointer-events-auto w-12 h-12 rounded-2xl bg-cream/95 backdrop-blur-sm border-[3px] border-ink flex items-center justify-center shadow-[3px_3px_0px_0px_#161611] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_#161611] transition-all"
-        >
-          <Menu className="w-6 h-6 text-forest" strokeWidth={2.5} />
-        </button>
-      )}
+      <button
+        onClick={openMenu}
+        aria-label="Open menu"
+        className="pointer-events-auto w-12 h-12 rounded-2xl bg-cream/95 backdrop-blur-sm border-[3px] border-ink flex items-center justify-center shadow-[3px_3px_0px_0px_#161611] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_#161611] transition-all"
+      >
+        <Menu className="w-6 h-6 text-forest" strokeWidth={2.5} />
+      </button>
     </div>
   );
 }
