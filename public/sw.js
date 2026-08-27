@@ -25,13 +25,17 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => !k.startsWith(CACHE_VERSION))
-          .map((k) => caches.delete(k))
+    caches.keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => !k.startsWith(CACHE_VERSION))
+            .map((k) => caches.delete(k))
+        )
       )
-    )
+      .catch((error) => {
+        console.warn("[Plantio SW] Cache cleanup failed:", error);
+      })
   );
   self.clients.claim();
 });
@@ -66,18 +70,20 @@ self.addEventListener("fetch", (event) => {
   // Map tiles — cache-first (stale-while-revalidate)
   if (url.hostname.includes("arcgisonline") || url.pathname.includes("/tile/")) {
     event.respondWith(
-      caches.match(req).then((cached) => {
-        const fetchPromise = fetch(req)
-          .then((res) => {
-            if (res && res.ok) {
-              const copy = res.clone();
-              caches.open(SHELL_CACHE).then((c) => c.put(req, copy)).catch(() => {});
-            }
-            return res;
-          })
-          .catch(() => cached);
-        return cached || fetchPromise;
-      })
+      caches.match(req)
+        .then((cached) => {
+          const fetchPromise = fetch(req)
+            .then((res) => {
+              if (res && res.ok) {
+                const copy = res.clone();
+                caches.open(SHELL_CACHE).then((c) => c.put(req, copy)).catch(() => {});
+              }
+              return res;
+            })
+            .catch(() => cached);
+          return cached || fetchPromise;
+        })
+        .catch(() => fetch(req).catch(() => new Response("offline", { status: 503 })))
     );
     return;
   }
@@ -92,12 +98,14 @@ self.addEventListener("fetch", (event) => {
 
   // Static assets — cache-first
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      if (res && res.ok && (url.pathname.startsWith("/icons/") || url.pathname.startsWith("/_next/static/"))) {
-        const copy = res.clone();
-        caches.open(SHELL_CACHE).then((c) => c.put(req, copy)).catch(() => {});
-      }
-      return res;
-    }).catch(() => cached))
+    caches.match(req)
+      .then((cached) => cached || fetch(req).then((res) => {
+        if (res && res.ok && (url.pathname.startsWith("/icons/") || url.pathname.startsWith("/_next/static/"))) {
+          const copy = res.clone();
+          caches.open(SHELL_CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() => cached))
+      .catch(() => fetch(req).catch(() => new Response("offline", { status: 503 })))
   );
 });
