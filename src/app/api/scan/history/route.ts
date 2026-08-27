@@ -3,12 +3,12 @@ import { supabaseServer } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 
-const FIREBASE_API_KEY = "AIzaSyDRZczZyqxzO_pIgmXhIdaNM7xL6IcB-rY";
+const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
 async function getFirebaseUid(req: NextRequest): Promise<string | null> {
   const auth = req.headers.get("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!token) return null;
+  if (!token || !FIREBASE_API_KEY) return null;
 
   const response = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
