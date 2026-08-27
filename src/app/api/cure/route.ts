@@ -39,12 +39,12 @@ Respond ONLY with a JSON object (no prose, no fences) using exactly this schema:
 
 Keep steps short and actionable. Organic first, chemical clearly separated. Amounts in plain units a farmer understands (kg, litres, grams). 3-5 items per list where sensible.`;
 
-const FIREBASE_API_KEY = "AIzaSyDRZczZyqxzO_pIgmXhIdaNM7xL6IcB-rY";
+const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
 async function getFirebaseUid(req: NextRequest): Promise<string | null> {
   const auth = req.headers.get("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!token) return null;
+  if (!token || !FIREBASE_API_KEY) return null;
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
