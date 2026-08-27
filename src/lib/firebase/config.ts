@@ -1,14 +1,12 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
-const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-
-if (!firebaseApiKey) {
-  throw new Error("Missing NEXT_PUBLIC_FIREBASE_API_KEY environment variable.");
-}
-
+// Firebase web API keys are public client configuration, not server secrets.
+// Keep this client config available at build time so static pages can prerender
+// without requiring a Vercel environment variable. Restrict the key in the
+// Firebase/Google Cloud console to the domains and APIs used by Plantio.
 const firebaseConfig = {
-  apiKey: firebaseApiKey,
+  apiKey: "AIzaSyDRZczZyqxzO_pIgmXhIdaNM7xL6IcB-rY",
   authDomain: "plantio-c3882.firebaseapp.com",
   projectId: "plantio-c3882",
   storageBucket: "plantio-c3882.firebasestorage.app",
