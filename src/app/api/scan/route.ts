@@ -65,12 +65,12 @@ Rules:
 - symptoms_summary_hi should contain the same information in Hindi when possible.
 - plant_description_en and plant_description_hi should be provided whenever plant_name is identified.`;
 
-const FIREBASE_API_KEY = "AIzaSyDRZczZyqxzO_pIgmXhIdaNM7xL6IcB-rY";
+const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
 async function getFirebaseUid(req: NextRequest): Promise<string | null> {
   const auth = req.headers.get("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!token) return null;
+  if (!token || !FIREBASE_API_KEY) return null;
   const response = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
     {
@@ -107,7 +107,6 @@ async function saveScanToSupabase(req: NextRequest, result: ScanResult, imageDat
     });
     if (error) console.error("[Scan] Supabase save failed:", error);
   } catch (error) {
-    // A database outage must not make an otherwise successful AI scan fail.
     console.error("[Scan] Supabase persistence error:", error);
   }
 }
@@ -190,8 +189,6 @@ export async function POST(req: NextRequest) {
       plant_description_hi: typeof parsed.plant_description_hi === "string" && parsed.plant_description_hi.trim() ? parsed.plant_description_hi : null,
     };
 
-    // Persist every successful scan for the authenticated Firebase user.
-    // The compact thumbnail is stored in the existing image_url text column.
     await saveScanToSupabase(req, result, image);
 
     return NextResponse.json({ ok: true, result });
