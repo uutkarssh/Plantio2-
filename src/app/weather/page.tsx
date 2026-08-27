@@ -126,7 +126,7 @@ function WeatherIcon({
   kind,
   className = "w-7 h-7",
 }: {
-  kind: ForecastDay["icon"] | typeof CURRENT["condition"];
+  kind: ForecastDay["icon"];
   className?: string;
 }) {
   const cls = className;
@@ -134,7 +134,6 @@ function WeatherIcon({
     case "sun":
       return <Sun className={cls} strokeWidth={2.5} />;
     case "cloud-sun":
-    case "partly-cloudy":
       return <CloudSun className={cls} strokeWidth={2.5} />;
     case "cloud":
       return <Cloud className={cls} strokeWidth={2.5} />;
