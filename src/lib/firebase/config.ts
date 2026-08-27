@@ -1,8 +1,14 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
+const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+
+if (!firebaseApiKey) {
+  throw new Error("Missing NEXT_PUBLIC_FIREBASE_API_KEY environment variable.");
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDRZczZyqxzO_pIgmXhIdaNM7xL6IcB-rY",
+  apiKey: firebaseApiKey,
   authDomain: "plantio-c3882.firebaseapp.com",
   projectId: "plantio-c3882",
   storageBucket: "plantio-c3882.firebasestorage.app",
