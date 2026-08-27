@@ -56,8 +56,17 @@ const SAMPLE: Record<string, MandiPrice[]> = {
 };
 
 function today(offsetDays = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = Number(parts.find((p) => p.type === "year")?.value);
+  const month = Number(parts.find((p) => p.type === "month")?.value);
+  const day = Number(parts.find((p) => p.type === "day")?.value);
+  const d = new Date(Date.UTC(year, month - 1, day + offsetDays));
   return d.toISOString().slice(0, 10);
 }
 
@@ -70,36 +79,37 @@ async function fetchLive(crop: string, state?: string): Promise<MandiPrice[] | n
     url.searchParams.set("format", "json");
     url.searchParams.set("limit", "1000");
     if (crop) {
-  url.searchParams.set("filters[commodity]", crop);
-}
-
-if (state) {
-  url.searchParams.set("filters[state]", state);
-}
-        if (state) {
+      url.searchParams.set("filters[commodity]", crop);
+    }
+    if (state) {
       url.searchParams.set("filters[state]", state);
-        }
+    }
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
-    const res = await fetch(url.toString(), { signal: ctrl.signal });
-    clearTimeout(t);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const records: any[] = data?.records || [];
-    const filtered = records
-      .filter((r) => !crop || r?.commodity?.toLowerCase().includes(crop.toLowerCase()))
-      .map<MandiPrice>((r) => ({
-        mandi: r.market || "Unknown",
-        district: r.district || "",
-        state: r.state || "",
-        crop: r.commodity || crop,
-        min_price: Number(r.min_price) || 0,
-        max_price: Number(r.max_price) || 0,
-        modal_price: Number(r.modal_price) || 0,
-        date: r.arrival_date || today(),
-        source: "live",
-      }));
-    return filtered.length ? filtered : null;
+    try {
+      const res = await fetch(url.toString(), { signal: ctrl.signal, cache: "no-store" });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const records: unknown[] = Array.isArray(data?.records) ? data.records : [];
+      const filtered = records
+        .filter((record): record is Record<string, unknown> => typeof record === "object" && record !== null)
+        .filter((r) => !crop || String(r.commodity ?? "").toLowerCase().includes(crop.toLowerCase()))
+        .filter((r) => !state || String(r.state ?? "").toLowerCase() === state.toLowerCase())
+        .map<MandiPrice>((r) => ({
+          mandi: String(r.market || "Unknown"),
+          district: String(r.district || ""),
+          state: String(r.state || ""),
+          crop: String(r.commodity || crop),
+          min_price: Number(r.min_price) || 0,
+          max_price: Number(r.max_price) || 0,
+          modal_price: Number(r.modal_price) || 0,
+          date: String(r.arrival_date || today()),
+          source: "live",
+        }));
+      return filtered.length ? filtered : null;
+    } finally {
+      clearTimeout(t);
+    }
   } catch (e) {
     console.error("mandi live fetch error:", e);
     return null;
